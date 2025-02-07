@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resendApiKey = process.env.RESEND_API_KEY;
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB limit
 
 if (!resendApiKey) {
   console.error('Missing RESEND_API_KEY environment variable');
@@ -20,26 +19,27 @@ export async function POST(request) {
 
   try {
     const formData = await request.formData();
-    
+
+    // Log all form data for debugging
+    console.log('Received form data keys:', Array.from(formData.keys()));
+
     // Process attachments
     const attachments = [];
     const files = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
-    
+
     for (const file of files) {
       const uploadedFile = formData.get(file);
       if (uploadedFile && uploadedFile instanceof Blob) {
-        if (uploadedFile.size > MAX_FILE_SIZE) {
-          return NextResponse.json(
-            { error: `הקובץ ${file} גדול מדי. הגודל המקסימלי הוא 5MB` },
-            { status: 400 }
-          );
-        }
-
         try {
           const buffer = await uploadedFile.arrayBuffer();
+          console.log(`Processing file: ${file}`, {
+            name: uploadedFile.name,
+            size: uploadedFile.size,
+            type: uploadedFile.type,
+          });
           attachments.push({
             filename: uploadedFile.name || `${file}.jpg`,
-            content: Buffer.from(buffer)
+            content: Buffer.from(buffer),
           });
         } catch (fileError) {
           console.error(`Error processing file ${file}:`, fileError);
@@ -48,12 +48,14 @@ export async function POST(request) {
             { status: 400 }
           );
         }
+      } else {
+        console.warn(`No file found for ${file}`);
       }
     }
 
     const emailContent = `<div dir="rtl" style="text-align: right; direction: rtl; font-family: Arial, sans-serif;">
       <h1 style="color: #333; border-bottom: 2px solid #1b283c; padding-bottom: 10px;">פרטי טופס חדש</h1>
-      
+
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">⚡ סטטוס תעסוקה</h3>
         <p>• סיים לעבוד: ${formData.get('finishedWork')}</p>
@@ -95,9 +97,10 @@ export async function POST(request) {
         to: 'shhadytours@gmail.com',
         subject: 'טופס חדש - משיכת כספים',
         html: emailContent,
-        attachments: attachments
+        attachments: attachments,
       });
 
+      console.log('Email sent successfully:', data);
       return NextResponse.json({ success: true, data });
     } catch (emailError) {
       console.error('Resend API Error:', emailError);
@@ -113,4 +116,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-} 
+}

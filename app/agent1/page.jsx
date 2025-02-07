@@ -45,99 +45,7 @@ export default function Agent2Form() {
     }
   };
 
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     console.log('Form submission started');
-//     setIsLoading(true);
-    
-//     try {
-//       const formDataToSend = new FormData();
-      
-//       // Calculate total file size and validate files with detailed logging
-//       let totalSize = 0;
-//       const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
-      
-//       console.log('Checking files before submission:');
-//       for (const field of fileFields) {
-//         const file = formData[field];
-//         if (file) {
-//           const fileSizeMB = file.size / (1024 * 1024);
-//           console.log(`${field}:`, {
-//             name: file.name,
-//             type: file.type,
-//             size: fileSizeMB.toFixed(2) + 'MB'
-//           });
-//           totalSize += file.size;
-//         }
-//       }
-
-//       const totalSizeMB = totalSize / (1024 * 1024);
-//       console.log('Total size before submission:', totalSizeMB.toFixed(2) + 'MB');
-
-//       // Check total size before submission with a bit of buffer room
-//       if (totalSizeMB > 23) { // Using 23MB as limit to allow for form data overhead
-//         alert(`הגודל הכולל של הקבצים (${totalSizeMB.toFixed(2)}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
-//         setIsLoading(false);
-//         return;
-//       }
-      
-//       // Add text fields first
-//       Object.keys(formData).forEach(key => {
-//         if (typeof formData[key] === 'string') {
-//           formDataToSend.append(key, formData[key]);
-//         }
-//       });
-
-//       // Add files with enhanced error handling
-//       for (const field of fileFields) {
-//         if (formData[field]) {
-//           try {
-//             const file = formData[field];
-//             console.log(`Processing ${field} for upload:`, {
-//               name: file.name,
-//               type: file.type,
-//               size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
-//             });
-            
-//             // Directly append the file without creating a new Blob
-//             formDataToSend.append(field, file);
-//           } catch (error) {
-//             console.error(`Error processing file ${field}:`, error);
-//             alert(`שגיאה בהעלאת הקובץ ${field}. אנא נסה שוב או השתמש בקובץ אחר.`);
-//             setIsLoading(false);
-//             return;
-//           }
-//         }
-//       }
-
-//       console.log('Sending request to API...');
-//       const response = await fetch('/api/send-email', {
-//         method: 'POST',
-//         body: formDataToSend,
-//       });
-
-//       if (!response.ok) {
-//         const errorText = await response.text();
-//         console.error('API Error Response:', errorText);
-//         throw new Error(errorText || 'Failed to send data');
-//       }
-
-//       const result = await response.json();
-//       console.log('API Response:', result);
-
-//       if (response.ok) {
-//         console.log('Form submitted successfully');
-//         alert('הטופס נשלח בהצלחה!');
-//         router.push('/');
-//       }
-//     } catch (error) {
-//       console.error('Error details:', error);
-//       alert('שגיאה בשליחת הטופס. אנא נסה שוב.');
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     
@@ -168,6 +76,7 @@ const handleSubmit = async (e) => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-[#e5f0fe]" dir="rtl">
