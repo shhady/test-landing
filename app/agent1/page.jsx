@@ -49,14 +49,14 @@ export default function Agent2Form() {
       });
 
       // Check individual file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
+      if (file.size > 10 * 1024 * 1024) {
         alert(`הקובץ ${file.name} גדול מדי. הגודל המקסימלי לכל קובץ הוא 5MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה`);
         e.target.value = ''; // Clear the input
         return;
       }
 
       // Check total size of all files (20MB limit)
-      if (totalSize > 20 * 1024 * 1024) {
+      if (totalSize > 40 * 1024 * 1024) {
         alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
         e.target.value = ''; // Clear the input
         return;
