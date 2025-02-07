@@ -3,30 +3,63 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
-const uploadToCloudinary = async (file) => {
+const MAX_FILE_SIZE = 8 * 1024 * 1024; // 5MB
+
+const uploadToCloudinary = async (file, onProgress) => {
+  if (file.size > MAX_FILE_SIZE) {
+    throw new Error(`הקובץ גדול מדי. הגודל המקסימלי המותר הוא 8MB`);
+  }
+
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', 'shadi-landing');
-  formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
 
   try {
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-      method: 'POST',
-      body: formData,
+    const xhr = new XMLHttpRequest();
+    const promise = new Promise((resolve, reject) => {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const progress = Math.round((e.loaded * 100) / e.total);
+          onProgress(progress);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+          resolve(response.secure_url);
+        } else {
+          reject(new Error('Upload failed'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('Cloudinary upload error:', errorData);
-      throw new Error(errorData.error?.message || 'Failed to upload file');
-    }
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/shhady/auto/upload`);
+    xhr.send(formData);
 
-    const data = await response.json();
-    return data.secure_url;
+    return await promise;
   } catch (error) {
     console.error('Upload error details:', error);
-    throw new Error(`Failed to upload file: ${error.message}`);
+    throw error;
   }
+};
+
+const uploadFiles = async (files) => {
+  const uploadPromises = Object.entries(files).map(async ([field, file]) => {
+    if (!file) return [field, null];
+    try {
+      const url = await uploadToCloudinary(file);
+      return [field, url];
+    } catch (error) {
+      console.error(`Error uploading ${field}:`, error);
+      return [field, null];
+    }
+  });
+
+  const results = await Promise.all(uploadPromises);
+  return Object.fromEntries(results.filter(([_, url]) => url !== null));
 };
 
 export default function Agent2Form() {
@@ -55,6 +88,20 @@ export default function Agent2Form() {
     bankApproval: null
   });
 
+  const [uploadedFiles, setUploadedFiles] = useState({
+    idFront: null,
+    idBack: null,
+    idAttachment: null,
+    bankApproval: null
+  });
+
+  const [uploadProgress, setUploadProgress] = useState({
+    idFront: 0,
+    idBack: 0,
+    idAttachment: 0,
+    bankApproval: 0
+  });
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -63,75 +110,83 @@ export default function Agent2Form() {
     }));
   };
 
-  const handleFileChange = (e) => {
-    const { name, files } = e.target;
-    if (files && files[0]) {
-      const file = files[0];
+  const deleteFile = async (fieldName) => {
+    try {
+      if (uploadedFiles[fieldName]) {
+        const publicId = uploadedFiles[fieldName].split('/').pop().split('.')[0];
+        await fetch('/api/delete-file', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ public_id: publicId })
+        });
+      }
+
+      setUploadedFiles(prev => ({ ...prev, [fieldName]: null }));
+      setUploadProgress(prev => ({ ...prev, [fieldName]: 0 }));
       
-      // Log file details
-      const fileSizeMB = file.size / (1024 * 1024);
-      console.log('New file details:', {
-        name: file.name,
-        type: file.type,
-        size: `${fileSizeMB.toFixed(2)}MB`
+      const input = document.getElementById(fieldName);
+      if (input) input.value = '';
+    } catch (error) {
+      console.error('Error deleting file:', error);
+      setFormMessage({
+        type: 'error',
+        content: 'שגיאה במחיקת הקובץ. אנא נסה שוב.'
       });
+    }
+  };
 
-      // Update file details state
-      setFileDetails(prev => [...prev, {
-        name: file.name,
-        type: file.type,
-        size: `${fileSizeMB.toFixed(2)}MB`
-      }]);
+  const handleFileChange = async (e) => {
+    const { name, files } = e.target;
+    if (!files || !files[0]) return;
 
-      setFormData(prev => ({
+    const file = files[0];
+    
+    try {
+      // Update progress callback
+      const updateProgress = (progress) => {
+        setUploadProgress(prev => ({ ...prev, [name]: progress }));
+      };
+
+      // Start upload with progress tracking
+      updateProgress(1);
+      const url = await uploadToCloudinary(file, updateProgress);
+      
+      // Update uploaded files state
+      setUploadedFiles(prev => ({
         ...prev,
-        [name]: file
+        [name]: url
       }));
 
-      // Show file details message
+      // Don't show success message for individual file uploads
+      setUploadProgress(prev => ({ ...prev, [name]: 100 }));
+    } catch (error) {
+      console.error('Upload error:', error);
       setFormMessage({
-        type: 'info',
-        content: `
-          קובץ נוסף:
-          שם: ${file.name}
-          סוג: ${file.type}
-          גודל: ${fileSizeMB.toFixed(2)}MB
-        `
+        type: 'error',
+        content: error.message || `שגיאה בהעלאת הקובץ ${file.name}`
       });
+      setUploadProgress(prev => ({ ...prev, [name]: 0 }));
+      
+      // Clear the input to allow retrying
+      const input = document.getElementById(name);
+      if (input) input.value = '';
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    setFormMessage({ type: 'info', content: 'מעלה קבצים...' });
-
+    
     try {
-      // Upload files to Cloudinary
-      const uploadedFiles = {};
-      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      // Check if all required files are uploaded
+      const requiredFiles = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      const missingFiles = requiredFiles.filter(field => !uploadedFiles[field]);
       
-      for (const field of fileFields) {
-        if (formData[field]) {
-          try {
-            setFormMessage({ 
-              type: 'info', 
-              content: `מעלה קובץ ${field}...` 
-            });
-            uploadedFiles[field] = await uploadToCloudinary(formData[field]);
-          } catch (error) {
-            console.error(`Error uploading ${field}:`, error);
-            setFormMessage({
-              type: 'error',
-              content: `שגיאה בהעלאת קובץ ${field}. אנא נסה שוב.`
-            });
-            setIsLoading(false);
-            return;
-          }
-        }
+      if (missingFiles.length > 0) {
+        throw new Error('חסרים קבצים נדרשים');
       }
 
-      // Prepare payload with form data and file URLs
+      // Prepare payload with already uploaded file URLs
       const payload = {
         ...Object.fromEntries(
           Object.entries(formData).filter(([_, value]) => !(value instanceof File))
@@ -153,25 +208,55 @@ export default function Agent2Form() {
         throw new Error(await response.text());
       }
 
+      // Show success message
+      setIsLoading(false);
       setFormMessage({
         type: 'success',
-        content: `
-          הטופס נשלח בהצלחה!
-          
-          פירוט הקבצים שנשלחו:
-          ${fileDetails.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
-        `
+        content: 'הטופס נשלח בהצלחה!'
       });
 
-      // Redirect after 3 seconds
-      setTimeout(() => router.push('/'), 3000);
+      // Clear form and redirect after 5 seconds
+      setTimeout(() => {
+        setFormData({
+          finishedWork: '',
+          endDate: '',
+          closingPapers: '',
+          financialIssues: '',
+          disability: '',
+          disabilityClaim: '',
+          currentEmploymentStatus: '',
+          salary: '',
+          employerName: '',
+          transparentCall: '',
+          fullName: '',
+          phone: '',
+          idNumber: '',
+          city: '',
+          idFront: null,
+          idBack: null,
+          idAttachment: null,
+          bankApproval: null
+        });
+        setUploadedFiles({
+          idFront: null,
+          idBack: null,
+          idAttachment: null,
+          bankApproval: null
+        });
+        setUploadProgress({
+          idFront: 0,
+          idBack: 0,
+          idAttachment: 0,
+          bankApproval: 0
+        });
+        router.push('/');
+      }, 3000); // Changed from 2000 to 5000 milliseconds
     } catch (error) {
       console.error('Error:', error);
       setFormMessage({
         type: 'error',
-        content: 'שגיאה בשליחת הטופס. אנא נסה שוב.'
+        content: error.message || 'שגיאה בשליחת הטופס. אנא נסה שוב.'
       });
-    } finally {
       setIsLoading(false);
     }
   };
@@ -181,9 +266,21 @@ export default function Agent2Form() {
       {isLoading && (
         <div className="fixed w-full top-0 left-0 inset-0 bg-black opacity-60 backdrop-blur-sm z-50 flex flex-col items-center justify-center" style={{ pointerEvents: 'auto' }}>
           <div className="w-16 h-16 border-4 border-[#0070f3] border-t-transparent rounded-full animate-spin mb-4"></div>
-          <div className="text-white text-2xl font-bold">שולח...</div>
+          <div className="text-white text-2xl font-bold">שולח טופס...</div>
         </div>
       )}
+      
+      {/* Success Message Overlay */}
+      {formMessage.type === 'success' && !isLoading && formMessage.content === 'הטופס נשלח בהצלחה!' && (
+        <div className="fixed w-full top-0 left-0 inset-0 bg-[#1b283c] bg-opacity-95 backdrop-blur-sm z-50 flex flex-col items-center justify-center" style={{ pointerEvents: 'auto' }}>
+          <div className="bg-white rounded-full p-8 mb-6">
+            <div className="text-[#1b283c] text-6xl">✓</div>
+          </div>
+          <div className="text-white text-3xl font-bold mb-4">{formMessage.content}</div>
+          <div className="text-white text-xl opacity-75">מעביר אותך לדף הבית...</div>
+        </div>
+      )}
+      
       <div className="container mx-auto px-4">
             <div className="flex justify-center items-center py-6">
                     <Image src="/landing-pic.png" alt="logo" width={500} height={500} className='w-full max-w-3xl' />
@@ -469,143 +566,84 @@ export default function Agent2Form() {
                   {/* <div className="bg-blue-50 p-4 rounded-md mb-4">
                     <p className="text-sm text-blue-800">
                       📸 הנחיות להעלאת קבצים:
-                      <br />
-                      • גודל מקסימלי לכל קובץ: 5MB
-                      <br />
-                      • גודל מקסימלי כולל: 20MB
-                      <br />
-                      • ניתן להעלות כל סוג של תמונה
-                      <br />
-                      • עבור אישור בנק: תמונה או PDF
-                      <br />
-                      • אם התמונה גדולה מדי, נסה:
-                      <br />
-                      - לצלם באיכות נמוכה יותר
-                      <br />
-                      - לדחוס את התמונה
-                      <br />
-                      - להשתמש בתמונה קטנה יותר
+                        <br />
+                        • גודל מקסימלי לכל קובץ: 5MB
+                        <br />
+                        • ניתן להעלות תמונות או PDF
                     </p>
                   </div> */}
-                  <div>
-                    <label className="block font-bold mb-2">צילום ת.ז - צד 1</label>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('idFront').click()}
-                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>העלה תמונה + </span>
-                        {formData.idFront && (
-                          <span className="text-green-600">✓</span>
+                  {['idFront', 'idBack', 'idAttachment', 'bankApproval'].map((field) => (
+                    <div key={field} className="relative">
+                      <label className="block font-bold mb-2">
+                        {field === 'idFront' && 'צילום ת.ז - צד 1'}
+                        {field === 'idBack' && 'צילום ת.ז - צד 2'}
+                        {field === 'idAttachment' && 'צילום ספח ת.ז'}
+                        {field === 'bankApproval' && 'אישור ניהול חשבון בנק'}
+                      </label>
+                      <div className="flex items-start gap-4">
+                        <div className="flex-1">
+                          <button
+                            type="button"
+                            onClick={() => document.getElementById(field).click()}
+                            className={`w-1/2 py-2 px-4 ${
+                              uploadProgress[field] > 0 && uploadProgress[field] < 100
+                                ? 'bg-gray-400'
+                                : 'bg-[#1b283c] hover:bg-[#2a3b52]'
+                            } text-white rounded-md transition-colors flex items-center justify-center gap-2`}
+                            disabled={uploadProgress[field] > 0 && uploadProgress[field] < 100}
+                          >
+                            {uploadProgress[field] > 0 && uploadProgress[field] < 100 ? (
+                              <span>מעלה... {uploadProgress[field]}%</span>
+                            ) : (
+                              <span>העלה {field === 'bankApproval' ? 'קובץ' : 'תמונה'} +</span>
+                            )}
+                          </button>
+                          <input
+                            id={field}
+                            type="file"
+                            name={field}
+                            onChange={handleFileChange}
+                            accept={field === 'bankApproval' ? "application/pdf,image/*" : "image/*"}
+                            className="hidden"
+                            required={!uploadedFiles[field]}
+                          />
+                        </div>
+                        
+                        {/* Preview and progress section */}
+                        {(uploadProgress[field] > 0 || uploadedFiles[field]) && (
+                          <div className="relative w-24 h-24 border rounded-md overflow-hidden">
+                            {uploadedFiles[field] ? (
+                              <>
+                                <img
+                                  src={uploadedFiles[field]}
+                                  alt={`Preview ${field}`}
+                                  className="w-full h-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => deleteFile(field)}
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                                >
+                                  ×
+                                </button>
+                              </>
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                <div className="w-full px-2">
+                                  <div className="bg-gray-200 rounded-full h-2.5">
+                                    <div
+                                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                      style={{ width: `${uploadProgress[field]}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         )}
-                      </button>
-                      {formData.idFront && (
-                        <p className="text-sm text-gray-600 text-center">
-                          {formData.idFront.name}
-                        </p>
-                      )}
-                      <input
-                        id="idFront"
-                        type="file"
-                        name="idFront"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                        required
-                      />
+                      </div>
                     </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold mb-2">צילום ת.ז - צד 2</label>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('idBack').click()}
-                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>העלה תמונה +</span>
-                        {formData.idBack && (
-                          <span className="text-green-600">✓</span>
-                        )}
-                      </button>
-                      {formData.idBack && (
-                        <p className="text-sm text-gray-600 text-center">
-                          {formData.idBack.name}
-                        </p>
-                      )}
-                      <input
-                        id="idBack"
-                        type="file"
-                        name="idBack"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold mb-2">צילום ספח ת.ז</label>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('idAttachment').click()}
-                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>העלה תמונה +</span>
-                        {formData.idAttachment && (
-                          <span className="text-green-600">✓</span>
-                        )}
-                      </button>
-                      {formData.idAttachment && (
-                        <p className="text-sm text-gray-600 text-center">
-                          {formData.idAttachment.name}
-                        </p>
-                      )}
-                      <input
-                        id="idAttachment"
-                        type="file"
-                        name="idAttachment"
-                        onChange={handleFileChange}
-                        accept="image/*"
-                        className="hidden"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold mb-2">אישור ניהול חשבון בנק</label>
-                    <div className="flex flex-col gap-2">
-                      <button
-                        type="button"
-                        onClick={() => document.getElementById('bankApproval').click()}
-                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
-                      >
-                        <span>העלה קובץ +</span>
-                        {formData.bankApproval && (
-                          <span className="text-green-600">✓</span>
-                        )}
-                      </button>
-                      {formData.bankApproval && (
-                        <p className="text-sm text-gray-600 text-center">
-                          {formData.bankApproval.name}
-                        </p>
-                      )}
-                      <input
-                        id="bankApproval"
-                        type="file"
-                        name="bankApproval"
-                        onChange={handleFileChange}
-                        accept="application/pdf,image/*"
-                        className="hidden"
-                        required
-                      />
-                    </div>
-                  </div>
+                  ))}
                 </div>
                 <div className="flex w-full">
                   {isLoading ? (
@@ -625,13 +663,9 @@ export default function Agent2Form() {
                 </div>
               </form>
 
-              {/* Message Area */}
-              {formMessage.content && (
-                <div className={`mt-4 p-4 rounded-lg ${
-                  formMessage.type === 'error' ? 'bg-red-50 text-red-800' : 
-                  formMessage.type === 'success' ? 'bg-green-50 text-green-800' :
-                  'bg-blue-50 text-blue-800'
-                }`}>
+              {/* Message Area - Only show error messages here */}
+              {formMessage.type === 'error' && formMessage.content && (
+                <div className="mt-4 p-4 rounded-lg bg-red-50 text-red-800">
                   <pre className="whitespace-pre-line text-sm">
                     {formMessage.content}
                   </pre>
