@@ -47,40 +47,57 @@ export default function Agent2Form() {
     e.preventDefault();
     console.log('Form submission started');
     setIsLoading(true);
-    console.log('Loading state:', true);
     
     try {
       const formDataToSend = new FormData();
       
+      // Log the form data being prepared
+      console.log('Preparing form data...');
       Object.keys(formData).forEach(key => {
         if (typeof formData[key] === 'string') {
           formDataToSend.append(key, formData[key]);
+          console.log(`Adding field ${key}:`, formData[key]);
         }
       });
 
-      if (formData.idFront) formDataToSend.append('idFront', formData.idFront);
-      if (formData.idBack) formDataToSend.append('idBack', formData.idBack);
-      if (formData.idAttachment) formDataToSend.append('idAttachment', formData.idAttachment);
-      if (formData.bankApproval) formDataToSend.append('bankApproval', formData.bankApproval);
+      // Log file attachments
+      if (formData.idFront) {
+        console.log('Adding idFront:', formData.idFront.name);
+        formDataToSend.append('idFront', formData.idFront);
+      }
+      if (formData.idBack) {
+        console.log('Adding idBack:', formData.idBack.name);
+        formDataToSend.append('idBack', formData.idBack);
+      }
+      if (formData.idAttachment) {
+        console.log('Adding idAttachment:', formData.idAttachment.name);
+        formDataToSend.append('idAttachment', formData.idAttachment);
+      }
+      if (formData.bankApproval) {
+        console.log('Adding bankApproval:', formData.bankApproval.name);
+        formDataToSend.append('bankApproval', formData.bankApproval);
+      }
 
-      console.log('Sending request to API');
+      console.log('Sending request to API...');
       const response = await fetch('/api/send-email', {
         method: 'POST',
         body: formDataToSend,
       });
+
+      const result = await response.json();
+      console.log('API Response:', result);
 
       if (response.ok) {
         console.log('Form submitted successfully');
         alert('הטופס נשלח בהצלחה!');
         router.push('/');
       } else {
-        throw new Error('Failed to send data');
+        throw new Error(result.error || 'Failed to send data');
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error details:', error);
       alert('שגיאה בשליחת הטופס. אנא נסה שוב.');
     } finally {
-      console.log('Setting loading state to false');
       setIsLoading(false);
     }
   };
@@ -133,7 +150,7 @@ export default function Agent2Form() {
                   <div>
                     <label className="block font-bold mb-2">תאריך סיום עבודה</label>
                     <input
-                      type="date"
+                      type="text"
                       name="endDate"
                       onChange={handleInputChange}
                       className="w-full p-3 border border-gray-300 rounded-md"
@@ -381,9 +398,9 @@ export default function Agent2Form() {
                       <button
                         type="button"
                         onClick={() => document.getElementById('idFront').click()}
-                        className="w-full py-2 px-4 bg-black text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
+                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
                       >
-                        <span>העלה תמונה</span>
+                        <span>העלה תמונה + </span>
                         {formData.idFront && (
                           <span className="text-green-600">✓</span>
                         )}
@@ -410,9 +427,9 @@ export default function Agent2Form() {
                       <button
                         type="button"
                         onClick={() => document.getElementById('idBack').click()}
-                        className="w-full py-2 px-4 bg-black text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
+                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
                       >
-                        <span>העלה תמונה</span>
+                        <span>העלה תמונה +</span>
                         {formData.idBack && (
                           <span className="text-green-600">✓</span>
                         )}
@@ -439,9 +456,9 @@ export default function Agent2Form() {
                       <button
                         type="button"
                         onClick={() => document.getElementById('idAttachment').click()}
-                        className="w-full py-2 px-4 bg-black text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
+                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md transition-colors flex items-center justify-center gap-2"
                       >
-                        <span>העלה תמונה</span>
+                        <span>העלה תמונה +</span>
                         {formData.idAttachment && (
                           <span className="text-green-600">✓</span>
                         )}
@@ -468,9 +485,9 @@ export default function Agent2Form() {
                       <button
                         type="button"
                         onClick={() => document.getElementById('bankApproval').click()}
-                        className="w-full py-2 px-4 bg-black text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
+                        className="w-1/2 py-2 px-4 bg-[#1b283c] text-white border-2 border-gray-300 rounded-md  transition-colors flex items-center justify-center gap-2"
                       >
-                        <span>העלה קובץ</span>
+                        <span>העלה קובץ +</span>
                         {formData.bankApproval && (
                           <span className="text-green-600">✓</span>
                         )}
@@ -491,15 +508,16 @@ export default function Agent2Form() {
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-center">
+                <div className="flex w-full ">
                   {isLoading ? (
-                    <div className="text-lg text-[#0070f3] animate-pulse">
+                    <div className="text-lg text-[#0070f3] animate-pulse w-full text-center">
                       שולח נתונים...
                     </div>
-                  ):(<div>
+                  ):(<div className='w-full'>
+
                     <button
                       type="submit"
-                      className="w-full py-3 px-4 bg-[#0070f3] text-white rounded-md hover:bg-[#005cc5] transition-colors"
+                      className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
                     >
                       שלח לבדיקה
                     </button>

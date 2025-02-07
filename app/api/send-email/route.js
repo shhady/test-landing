@@ -10,7 +10,10 @@ if (!resendApiKey) {
 const resend = new Resend(resendApiKey);
 
 export async function POST(request) {
+  console.log('API Route started - POST request received');
+  
   if (!resendApiKey) {
+    console.error('API Key missing in request');
     return NextResponse.json(
       { error: 'Server configuration error: Missing API key' },
       { status: 500 }
@@ -18,24 +21,34 @@ export async function POST(request) {
   }
 
   try {
+    console.log('Parsing form data...');
     const formData = await request.formData();
+    console.log('Form data received:', Object.fromEntries(formData.entries()));
     
     // Prepare email attachments
     const attachments = [];
     const files = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
     
+    console.log('Processing file attachments...');
     for (const file of files) {
       const uploadedFile = formData.get(file);
       if (uploadedFile) {
-        const buffer = await uploadedFile.arrayBuffer();
-        attachments.push({
-          filename: uploadedFile.name,
-          content: Buffer.from(buffer)
-        });
+        console.log(`Processing file: ${file}, name: ${uploadedFile.name}`);
+        try {
+          const buffer = await uploadedFile.arrayBuffer();
+          attachments.push({
+            filename: uploadedFile.name,
+            content: Buffer.from(buffer)
+          });
+        } catch (fileError) {
+          console.error(`Error processing file ${file}:`, fileError);
+        }
       }
     }
+    console.log('Attachments processed:', attachments.length);
 
     // Create the email content
+    console.log('Creating email content...');
     const emailContent = `<div dir="rtl" style="text-align: right; direction: rtl; font-family: Arial, sans-serif;">
       <h1 style="color: #333; border-bottom: 2px solid #0070f3; padding-bottom: 10px;">פרטי טופס חדש</h1>
       
@@ -83,7 +96,7 @@ export async function POST(request) {
 
 
     try {
-      // Send email using Resend
+      console.log('Sending email via Resend...');
       const data = await resend.emails.send({
         from: 'onboarding@resend.dev',
         to: 'shhadytours@gmail.com',
@@ -96,12 +109,20 @@ export async function POST(request) {
       return NextResponse.json({ success: true, data });
     } catch (emailError) {
       console.error('Resend API Error:', emailError);
-      throw emailError;
+      // Return a more specific error response
+      return NextResponse.json(
+        { error: `Email sending failed: ${emailError.message}` },
+        { status: 500 }
+      );
     }
   } catch (error) {
     console.error('Error processing request:', error);
+    // Return a more detailed error response
     return NextResponse.json(
-      { error: error.message || 'Failed to send email' },
+      { 
+        error: error.message || 'Failed to send email',
+        details: error.stack
+      },
       { status: 500 }
     );
   }
