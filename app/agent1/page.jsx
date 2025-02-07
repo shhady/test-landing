@@ -422,7 +422,6 @@ export default function Agent2Form() {
                         name="idFront"
                         onChange={handleFileChange}
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -453,7 +452,6 @@ export default function Agent2Form() {
                         name="idBack"
                         onChange={handleFileChange}
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -484,7 +482,6 @@ export default function Agent2Form() {
                         name="idAttachment"
                         onChange={handleFileChange}
                         accept="image/*"
-                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -514,8 +511,7 @@ export default function Agent2Form() {
                         type="file"
                         name="bankApproval"
                         onChange={handleFileChange}
-                        accept="application/pdf"
-                        capture="environment"
+                        accept="application/pdf,image/*"
                         className="hidden"
                         required
                       />
