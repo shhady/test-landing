@@ -3,9 +3,37 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 
+const uploadToCloudinary = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', 'shadi-landing');
+  formData.append('api_key', process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
+
+  try {
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Cloudinary upload error:', errorData);
+      throw new Error(errorData.error?.message || 'Failed to upload file');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    console.error('Upload error details:', error);
+    throw new Error(`Failed to upload file: ${error.message}`);
+  }
+};
+
 export default function Agent2Form() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [formMessage, setFormMessage] = useState({ type: '', content: '' });
+  const [fileDetails, setFileDetails] = useState([]);
   const [formData, setFormData] = useState({
     finishedWork: '',
     endDate: '',
@@ -38,45 +66,115 @@ export default function Agent2Form() {
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
+      const file = files[0];
+      
+      // Log file details
+      const fileSizeMB = file.size / (1024 * 1024);
+      console.log('New file details:', {
+        name: file.name,
+        type: file.type,
+        size: `${fileSizeMB.toFixed(2)}MB`
+      });
+
+      // Update file details state
+      setFileDetails(prev => [...prev, {
+        name: file.name,
+        type: file.type,
+        size: `${fileSizeMB.toFixed(2)}MB`
+      }]);
+
       setFormData(prev => ({
         ...prev,
-        [name]: files[0]
+        [name]: file
       }));
+
+      // Show file details message
+      setFormMessage({
+        type: 'info',
+        content: `
+          קובץ נוסף:
+          שם: ${file.name}
+          סוג: ${file.type}
+          גודל: ${fileSizeMB.toFixed(2)}MB
+        `
+      });
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+    setFormMessage({ type: 'info', content: 'מעלה קבצים...' });
+
     try {
-      const formDataToSend = new FormData();
+      // Upload files to Cloudinary
+      const uploadedFiles = {};
+      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
       
-      Object.keys(formData).forEach(key => {
-        if (formData[key] instanceof File || typeof formData[key] === 'string') {
-          formDataToSend.append(key, formData[key]);
+      for (const field of fileFields) {
+        if (formData[field]) {
+          try {
+            setFormMessage({ 
+              type: 'info', 
+              content: `מעלה קובץ ${field}...` 
+            });
+            uploadedFiles[field] = await uploadToCloudinary(formData[field]);
+          } catch (error) {
+            console.error(`Error uploading ${field}:`, error);
+            setFormMessage({
+              type: 'error',
+              content: `שגיאה בהעלאת קובץ ${field}. אנא נסה שוב.`
+            });
+            setIsLoading(false);
+            return;
+          }
         }
-      });
+      }
+
+      // Prepare payload with form data and file URLs
+      const payload = {
+        ...Object.fromEntries(
+          Object.entries(formData).filter(([_, value]) => !(value instanceof File))
+        ),
+        ...uploadedFiles
+      };
+
+      setFormMessage({ type: 'info', content: 'שולח טופס...' });
 
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        body: formDataToSend,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         throw new Error(await response.text());
       }
 
-      alert('הטופס נשלח בהצלחה!');
-      router.push('/');
+      setFormMessage({
+        type: 'success',
+        content: `
+          הטופס נשלח בהצלחה!
+          
+          פירוט הקבצים שנשלחו:
+          ${fileDetails.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
+        `
+      });
+
+      // Redirect after 3 seconds
+      setTimeout(() => router.push('/'), 3000);
     } catch (error) {
       console.error('Error:', error);
-      alert('שגיאה בשליחת הטופס. אנא נסה שוב.');
+      setFormMessage({
+        type: 'error',
+        content: 'שגיאה בשליחת הטופס. אנא נסה שוב.'
+      });
     } finally {
       setIsLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-[#e5f0fe]" dir="rtl">
@@ -92,8 +190,8 @@ export default function Agent2Form() {
             </div>
             <h1 className="text-2xl font-bold text-center mb-6">תהליך למשיכת כספים הוא פשוט וקל</h1>
 
-            <div className="max-w-[500px] mx-auto bg-white p-8 rounded-lg shadow-md">
-              <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="max-w-[500px] mx-auto">
+              <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-4">
                 {/* Radio Questions */}
                 <div className="space-y-4">
                   <div>
@@ -509,23 +607,46 @@ export default function Agent2Form() {
                     </div>
                   </div>
                 </div>
-                <div className="flex w-full ">
+                <div className="flex w-full">
                   {isLoading ? (
                     <div className="text-lg text-[#0070f3] animate-pulse w-full text-center">
                       שולח נתונים...
                     </div>
-                  ):(<div className='w-full'>
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
-                    >
-                      שלח לבדיקה
-                    </button>
-                  </div>)}
+                  ) : (
+                    <div className='w-full'>
+                      <button
+                        type="submit"
+                        className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
+                      >
+                        שלח לבדיקה
+                      </button>
+                    </div>
+                  )}
                 </div>
-                
               </form>
+
+              {/* Message Area */}
+              {formMessage.content && (
+                <div className={`mt-4 p-4 rounded-lg ${
+                  formMessage.type === 'error' ? 'bg-red-50 text-red-800' : 
+                  formMessage.type === 'success' ? 'bg-green-50 text-green-800' :
+                  'bg-blue-50 text-blue-800'
+                }`}>
+                  <pre className="whitespace-pre-line text-sm">
+                    {formMessage.content}
+                  </pre>
+                </div>
+              )}
+
+              {/* File Details Area */}
+              {fileDetails.length > 0 && (
+                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                  <h3 className="font-bold text-blue-800 mb-2">פירוט הקבצים:</h3>
+                  <pre className="whitespace-pre-line text-sm text-blue-800">
+                    {fileDetails.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
+                  </pre>
+                </div>
+              )}
             </div>
         </div>
     </div>

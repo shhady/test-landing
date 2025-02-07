@@ -1,9 +1,6 @@
-
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: '24mb', // Adjust the size limit as needed
-    },
+    bodyParser: true
   },
 };
 
@@ -18,6 +15,18 @@ if (!resendApiKey) {
 
 const resend = new Resend(resendApiKey);
 
+async function downloadFile(url) {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to download file');
+    const buffer = await response.arrayBuffer();
+    return Buffer.from(buffer);
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    throw error;
+  }
+}
+
 export async function POST(request) {
   if (!resendApiKey) {
     return NextResponse.json(
@@ -27,38 +36,31 @@ export async function POST(request) {
   }
 
   try {
-    const formData = await request.formData();
+    const body = await request.json();
+    console.log('Received payload:', body);
 
-    // Log all form data for debugging
-    console.log('Received form data keys:', Array.from(formData.keys()));
-
-    // Process attachments
+    // Download files from Cloudinary
     const attachments = [];
-    const files = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+    const fileFields = {
+      idFront: 'תעודת זהות - צד קדמי',
+      idBack: 'תעודת זהות - צד אחורי',
+      idAttachment: 'ספח תעודת זהות',
+      bankApproval: 'אישור ניהול חשבון בנק'
+    };
 
-    for (const file of files) {
-      const uploadedFile = formData.get(file);
-      if (uploadedFile && uploadedFile instanceof Blob) {
+    for (const [field, description] of Object.entries(fileFields)) {
+      if (body[field]) {
         try {
-          const buffer = await uploadedFile.arrayBuffer();
-          console.log(`Processing file: ${file}`, {
-            name: uploadedFile.name,
-            size: uploadedFile.size,
-            type: uploadedFile.type,
-          });
+          console.log(`Downloading ${description} from ${body[field]}`);
+          const fileContent = await downloadFile(body[field]);
+          const fileExtension = body[field].split('.').pop();
           attachments.push({
-            filename: uploadedFile.name || `${file}.jpg`,
-            content: Buffer.from(buffer),
+            filename: `${description}.${fileExtension}`,
+            content: fileContent
           });
-        } catch (fileError) {
-          console.error(`Error processing file ${file}:`, fileError);
-          return NextResponse.json(
-            { error: `שגיאה בעיבוד הקובץ ${file}` },
-            { status: 400 }
-          );
+        } catch (error) {
+          console.error(`Error downloading ${description}:`, error);
         }
-      } else {
-        console.warn(`No file found for ${file}`);
       }
     }
 
@@ -67,36 +69,36 @@ export async function POST(request) {
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">⚡ סטטוס תעסוקה</h3>
-        <p>• סיים לעבוד: ${formData.get('finishedWork')}</p>
-        <p>• תאריך סיום: ${formData.get('endDate') || 'לא צוין'}</p>
-        <p>• טפסי 161: ${formData.get('closingPapers')}</p>
-        <p>• עובד כיום: ${formData.get('currentEmploymentStatus')}</p>
-        <p>• משכורת נוכחית: ${formData.get('salary') || 'לא צוין'}</p>
-        <p>• מעסיק נוכחי: ${formData.get('employerName') || 'לא צוין'}</p>
+        <p>• סיים לעבוד: ${body.finishedWork}</p>
+        <p>• תאריך סיום: ${body.endDate || 'לא צוין'}</p>
+        <p>• טפסי 161: ${body.closingPapers}</p>
+        <p>• עובד כיום: ${body.currentEmploymentStatus}</p>
+        <p>• משכורת נוכחית: ${body.salary || 'לא צוין'}</p>
+        <p>• מעסיק נוכחי: ${body.employerName || 'לא צוין'}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">🏥 מצב רפואי ופיננסי</h3>
-        <p>• בעיות משפטיות: ${formData.get('financialIssues')}</p>
-        <p>• נכות: ${formData.get('disability')}</p>
-        <p>• תביעת נכות: ${formData.get('disabilityClaim')}</p>
+        <p>• בעיות משפטיות: ${body.financialIssues}</p>
+        <p>• נכות: ${body.disability}</p>
+        <p>• תביעת נכות: ${body.disabilityClaim}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">👤 פרטים אישיים</h3>
-        <p>• שם מלא: ${formData.get('fullName')}</p>
-        <p>• טלפון: ${formData.get('phone')}</p>
-        <p>• ת.ז: ${formData.get('idNumber')}</p>
-        <p>• עיר: ${formData.get('city')}</p>
-        <p>• מוכן לשיחה: ${formData.get('transparentCall')}</p>
+        <p>• שם מלא: ${body.fullName}</p>
+        <p>• טלפון: ${body.phone}</p>
+        <p>• ת.ז: ${body.idNumber}</p>
+        <p>• עיר: ${body.city}</p>
+        <p>• מוכן לשיחה: ${body.transparentCall}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">📎 קבצים מצורפים</h3>
-        <p>• צילום ת.ז - צד 1: ${formData.get('idFront') ? '✓' : '✗'}</p>
-        <p>• צילום ת.ז - צד 2: ${formData.get('idBack') ? '✓' : '✗'}</p>
-        <p>• צילום ספח ת.ז: ${formData.get('idAttachment') ? '✓' : '✗'}</p>
-        <p>• אישור ניהול חשבון בנק: ${formData.get('bankApproval') ? '✓' : '✗'}</p>
+        <p>• צילום ת.ז - צד 1: ${body.idFront ? '✓ (מצורף)' : '✗'}</p>
+        <p>• צילום ת.ז - צד 2: ${body.idBack ? '✓ (מצורף)' : '✗'}</p>
+        <p>• צילום ספח ת.ז: ${body.idAttachment ? '✓ (מצורף)' : '✗'}</p>
+        <p>• אישור ניהול חשבון בנק: ${body.bankApproval ? '✓ (מצורף)' : '✗'}</p>
       </div>
     </div>`;
 
@@ -106,7 +108,7 @@ export async function POST(request) {
         to: 'shhadytours@gmail.com',
         subject: 'טופס חדש - משיכת כספים',
         html: emailContent,
-        attachments: attachments,
+        attachments: attachments
       });
 
       console.log('Email sent successfully:', data);
