@@ -48,7 +48,6 @@ export async function POST(request) {
        <p> • עובד כיום: ${formData.get('currentEmploymentStatus')} </p>
        <p> • משכורת נוכחית: ${formData.get('salary') || 'לא צוין'} </p>
        <p> • מעסיק נוכחי: ${formData.get('employerName') || 'לא צוין'} </p>
-       <p> • מעסיק נוכחי: ${formData.get('employerName') || 'לא צוין'}
       </div>
 
       <div style="margin: 20px 0;">
