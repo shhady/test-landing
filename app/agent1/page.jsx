@@ -40,6 +40,27 @@ export default function Agent2Form() {
     if (files && files[0]) {
       const file = files[0];
       
+      // Log file information for debugging
+      console.log('File details:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+
+      // Simple check if it's an image or PDF
+      const isImage = file.type.startsWith('image/');
+      const isPDF = file.type === 'application/pdf';
+      
+      if (name === 'bankApproval' && !isPDF && !isImage) {
+        alert('אנא העלה קובץ PDF או תמונה עבור אישור הבנק');
+        e.target.value = '';
+        return;
+      } else if (name !== 'bankApproval' && !isImage) {
+        alert('אנא העלה קובץ תמונה עבור אישור הבנק');
+        e.target.value = '';
+        return;
+      }
+      
       // Calculate total size of all files after adding this one
       let totalSize = file.size;
       Object.keys(formData).forEach(key => {
@@ -51,14 +72,14 @@ export default function Agent2Form() {
       // Check individual file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
         alert(`הקובץ ${file.name} גדול מדי. הגודל המקסימלי לכל קובץ הוא 5MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה`);
-        e.target.value = ''; // Clear the input
+        e.target.value = '';
         return;
       }
 
       // Check total size of all files (20MB limit)
       if (totalSize > 20 * 1024 * 1024) {
         alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
-        e.target.value = ''; // Clear the input
+        e.target.value = '';
         return;
       }
 
@@ -77,14 +98,21 @@ export default function Agent2Form() {
     try {
       const formDataToSend = new FormData();
       
-      // Calculate total file size
+      // Calculate total file size and validate files
       let totalSize = 0;
       const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
-      fileFields.forEach(field => {
-        if (formData[field] instanceof File) {
-          totalSize += formData[field].size;
+      
+      for (const field of fileFields) {
+        const file = formData[field];
+        if (file) {
+          console.log(`Processing ${field}:`, {
+            name: file.name,
+            type: file.type,
+            size: file.size
+          });
+          totalSize += file.size;
         }
-      });
+      }
 
       // Check total size before submission
       if (totalSize > 20 * 1024 * 1024) {
@@ -104,10 +132,12 @@ export default function Agent2Form() {
       for (const field of fileFields) {
         if (formData[field]) {
           try {
-            formDataToSend.append(field, formData[field]);
+            const file = formData[field];
+            const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+            formDataToSend.append(field, blob, file.name);
           } catch (error) {
-            console.error(`Error adding file ${field}:`, error);
-            alert('שגיאה בהעלאת הקבצים. אנא נסה שוב.');
+            console.error(`Error processing file ${field}:`, error);
+            alert(`שגיאה בהעלאת הקובץ ${field}. אנא נסה שוב או השתמש בקובץ אחר.`);
             setIsLoading(false);
             return;
           }
@@ -435,6 +465,10 @@ export default function Agent2Form() {
                       • גודל מקסימלי לכל קובץ: 5MB
                       <br />
                       • גודל מקסימלי כולל: 20MB
+                      <br />
+                      • ניתן להעלות כל סוג של תמונה
+                      <br />
+                      • עבור אישור בנק: תמונה או PDF
                       <br />
                       • אם התמונה גדולה מדי, נסה לצלם באיכות נמוכה יותר
                     </p>
