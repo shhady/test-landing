@@ -1,3 +1,12 @@
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '24mb', // Adjust the size limit as needed
+    },
+  },
+};
+
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
