@@ -147,27 +147,33 @@ export default function Agent2Form() {
       const totalSizeMB = totalSize / (1024 * 1024);
       console.log('Total size before submission:', totalSizeMB.toFixed(2) + 'MB');
 
-      // Check total size before submission
-      if (totalSizeMB > 20) {
+      // Check total size before submission with a bit of buffer room
+      if (totalSizeMB > 23) { // Using 23MB as limit to allow for form data overhead
         alert(`הגודל הכולל של הקבצים (${totalSizeMB.toFixed(2)}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
         setIsLoading(false);
         return;
       }
       
-      // Add text fields
+      // Add text fields first
       Object.keys(formData).forEach(key => {
         if (typeof formData[key] === 'string') {
           formDataToSend.append(key, formData[key]);
         }
       });
 
-      // Add files with error handling
+      // Add files with enhanced error handling
       for (const field of fileFields) {
         if (formData[field]) {
           try {
             const file = formData[field];
-            const blob = new Blob([await file.arrayBuffer()], { type: file.type });
-            formDataToSend.append(field, blob, file.name);
+            console.log(`Processing ${field} for upload:`, {
+              name: file.name,
+              type: file.type,
+              size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+            });
+            
+            // Directly append the file without creating a new Blob
+            formDataToSend.append(field, file);
           } catch (error) {
             console.error(`Error processing file ${field}:`, error);
             alert(`שגיאה בהעלאת הקובץ ${field}. אנא נסה שוב או השתמש בקובץ אחר.`);
@@ -183,6 +189,12 @@ export default function Agent2Form() {
         body: formDataToSend,
       });
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        throw new Error(errorText || 'Failed to send data');
+      }
+
       const result = await response.json();
       console.log('API Response:', result);
 
@@ -190,8 +202,6 @@ export default function Agent2Form() {
         console.log('Form submitted successfully');
         alert('הטופס נשלח בהצלחה!');
         router.push('/');
-      } else {
-        throw new Error(result.error || 'Failed to send data');
       }
     } catch (error) {
       console.error('Error details:', error);
