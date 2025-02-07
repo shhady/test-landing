@@ -6,10 +6,6 @@ import Image from 'next/image';
 export default function Agent2Form() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [formMessage, setFormMessage] = useState({ type: '', content: '' });
-  const [fileDetails, setFileDetails] = useState([]);
-  const [showStatus, setShowStatus] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
   const [formData, setFormData] = useState({
     finishedWork: '',
     endDate: '',
@@ -39,216 +35,135 @@ export default function Agent2Form() {
     }));
   };
 
-  const formatFileSize = (bytes) => {
-    const mb = bytes / (1024 * 1024);
-    return mb.toFixed(2) + 'MB';
-  };
-
   const handleFileChange = (e) => {
     const { name, files } = e.target;
     if (files && files[0]) {
-      const file = files[0];
-      
-      console.log('New file details:', {
-        name: file.name,
-        type: file.type,
-        size: formatFileSize(file.size)
-      });
-
-      const isImage = file.type.startsWith('image/');
-      const isPDF = file.type === 'application/pdf';
-      
-      if (name === 'bankApproval' && !isPDF && !isImage) {
-        setStatusMessage('אנא העלה קובץ PDF או תמונה עבור אישור הבנק');
-        setShowStatus(true);
-        e.target.value = '';
-        return;
-      } else if (name !== 'bankApproval' && !isImage) {
-        setStatusMessage('אנא העלה קובץ תמונה בלבד');
-        setShowStatus(true);
-        e.target.value = '';
-        return;
-      }
-
-      const fileSizeMB = file.size / (1024 * 1024);
-      if (fileSizeMB > 5) {
-        setStatusMessage(`
-          הקובץ ${file.name} גדול מדי (${fileSizeMB.toFixed(2)}MB)
-          סוג קובץ: ${file.type}
-          הגודל המקסימלי לכל קובץ הוא 5MB
-          נסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה
-        `);
-        setShowStatus(true);
-        e.target.value = '';
-        return;
-      }
-      
-      let currentTotalSize = 0;
-      let fileDetails = [];
-      Object.keys(formData).forEach(key => {
-        if (key !== name && formData[key] instanceof File) {
-          const size = formData[key].size / (1024 * 1024);
-          fileDetails.push({
-            name: formData[key].name,
-            type: formData[key].type,
-            size: size.toFixed(2) + 'MB'
-          });
-          currentTotalSize += formData[key].size;
-        }
-      });
-
-      const newTotalSize = currentTotalSize + file.size;
-      const newTotalSizeMB = newTotalSize / (1024 * 1024);
-
-      if (newTotalSizeMB > 20) {
-        const filesMessage = fileDetails.map(f => 
-          `${f.name} (${f.type}) - ${f.size}`
-        ).join('\n');
-
-        setStatusMessage(`
-          הגודל הכולל של הקבצים חורג מהמגבלה של 20MB
-          
-          קבצים קיימים:
-          ${filesMessage}
-          
-          קובץ חדש:
-          ${file.name} (${file.type}) - ${formatFileSize(file.size)}
-          
-          סך הכל: ${newTotalSizeMB.toFixed(2)}MB
-          מגבלת גודל: 20MB
-        `);
-        setShowStatus(true);
-        e.target.value = '';
-        return;
-      }
-
       setFormData(prev => ({
         ...prev,
-        [name]: file
+        [name]: files[0]
       }));
-
-      setStatusMessage(`
-        הקובץ הועלה בהצלחה:
-        שם: ${file.name}
-        סוג: ${file.type}
-        גודל: ${formatFileSize(file.size)}
-        
-        סך הכל: ${newTotalSizeMB.toFixed(2)}MB מתוך 20MB
-      `);
-      setShowStatus(true);
-      setTimeout(() => setShowStatus(false), 3000);
     }
   };
 
-  const handleSubmit = async (e) => {
+//   const handleSubmit = async (e) => {
+//     e.preventDefault();
+//     console.log('Form submission started');
+//     setIsLoading(true);
+    
+//     try {
+//       const formDataToSend = new FormData();
+      
+//       // Calculate total file size and validate files with detailed logging
+//       let totalSize = 0;
+//       const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      
+//       console.log('Checking files before submission:');
+//       for (const field of fileFields) {
+//         const file = formData[field];
+//         if (file) {
+//           const fileSizeMB = file.size / (1024 * 1024);
+//           console.log(`${field}:`, {
+//             name: file.name,
+//             type: file.type,
+//             size: fileSizeMB.toFixed(2) + 'MB'
+//           });
+//           totalSize += file.size;
+//         }
+//       }
+
+//       const totalSizeMB = totalSize / (1024 * 1024);
+//       console.log('Total size before submission:', totalSizeMB.toFixed(2) + 'MB');
+
+//       // Check total size before submission with a bit of buffer room
+//       if (totalSizeMB > 23) { // Using 23MB as limit to allow for form data overhead
+//         alert(`הגודל הכולל של הקבצים (${totalSizeMB.toFixed(2)}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
+//         setIsLoading(false);
+//         return;
+//       }
+      
+//       // Add text fields first
+//       Object.keys(formData).forEach(key => {
+//         if (typeof formData[key] === 'string') {
+//           formDataToSend.append(key, formData[key]);
+//         }
+//       });
+
+//       // Add files with enhanced error handling
+//       for (const field of fileFields) {
+//         if (formData[field]) {
+//           try {
+//             const file = formData[field];
+//             console.log(`Processing ${field} for upload:`, {
+//               name: file.name,
+//               type: file.type,
+//               size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+//             });
+            
+//             // Directly append the file without creating a new Blob
+//             formDataToSend.append(field, file);
+//           } catch (error) {
+//             console.error(`Error processing file ${field}:`, error);
+//             alert(`שגיאה בהעלאת הקובץ ${field}. אנא נסה שוב או השתמש בקובץ אחר.`);
+//             setIsLoading(false);
+//             return;
+//           }
+//         }
+//       }
+
+//       console.log('Sending request to API...');
+//       const response = await fetch('/api/send-email', {
+//         method: 'POST',
+//         body: formDataToSend,
+//       });
+
+//       if (!response.ok) {
+//         const errorText = await response.text();
+//         console.error('API Error Response:', errorText);
+//         throw new Error(errorText || 'Failed to send data');
+//       }
+
+//       const result = await response.json();
+//       console.log('API Response:', result);
+
+//       if (response.ok) {
+//         console.log('Form submitted successfully');
+//         alert('הטופס נשלח בהצלחה!');
+//         router.push('/');
+//       }
+//     } catch (error) {
+//       console.error('Error details:', error);
+//       alert('שגיאה בשליחת הטופס. אנא נסה שוב.');
+//     } finally {
+//       setIsLoading(false);
+//     }
+//   };
+const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submission started');
     setIsLoading(true);
     
     try {
       const formDataToSend = new FormData();
       
-      let totalSize = 0;
-      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
-      const currentFiles = [];
-      
-      console.log('Checking files before submission:');
-      for (const field of fileFields) {
-        const file = formData[field];
-        if (file) {
-          const fileSizeMB = file.size / (1024 * 1024);
-          currentFiles.push({
-            name: file.name,
-            type: file.type,
-            size: fileSizeMB.toFixed(2) + 'MB'
-          });
-          totalSize += file.size;
-        }
-      }
-
-      const totalSizeMB = totalSize / (1024 * 1024);
-      setFileDetails(currentFiles);
-
-      if (totalSizeMB > 23) {
-        setFormMessage({
-          type: 'error',
-          content: `
-            הגודל הכולל של הקבצים (${totalSizeMB.toFixed(2)}MB) חורג מהמגבלה של 20MB
-            אנא העלה תמונות קטנות יותר
-            
-            פירוט הקבצים:
-            ${currentFiles.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
-          `
-        });
-        setIsLoading(false);
-        return;
-      }
-      
       Object.keys(formData).forEach(key => {
-        if (typeof formData[key] === 'string') {
+        if (formData[key] instanceof File || typeof formData[key] === 'string') {
           formDataToSend.append(key, formData[key]);
         }
       });
 
-      for (const field of fileFields) {
-        if (formData[field]) {
-          try {
-            const file = formData[field];
-            console.log(`Processing ${field} for upload:`, {
-              name: file.name,
-              type: file.type,
-              size: formatFileSize(file.size)
-            });
-            
-            formDataToSend.append(field, file);
-          } catch (error) {
-            console.error(`Error processing file ${field}:`, error);
-            setFormMessage({
-              type: 'error',
-              content: `שגיאה בהעלאת הקובץ ${field}. אנא נסה שוב או השתמש בקובץ אחר.`
-            });
-            setIsLoading(false);
-            return;
-          }
-        }
-      }
-
-      console.log('Sending request to API...');
       const response = await fetch('/api/send-email', {
         method: 'POST',
         body: formDataToSend,
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        throw new Error(errorText || 'Failed to send data');
+        throw new Error(await response.text());
       }
 
-      const result = await response.json();
-      console.log('API Response:', result);
-
-      if (response.ok) {
-        console.log('Form submitted successfully');
-        setFormMessage({
-          type: 'success',
-          content: `
-            הטופס נשלח בהצלחה!
-            
-            פירוט הקבצים שנשלחו:
-            ${currentFiles.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
-            
-            סך הכל: ${totalSizeMB.toFixed(2)}MB
-          `
-        });
-        setTimeout(() => router.push('/'), 3000);
-      }
+      alert('הטופס נשלח בהצלחה!');
+      router.push('/');
     } catch (error) {
-      console.error('Error details:', error);
-      setFormMessage({
-        type: 'error',
-        content: 'שגיאה בשליחת הטופס. אנא נסה שוב.'
-      });
+      console.error('Error:', error);
+      alert('שגיאה בשליחת הטופס. אנא נסה שוב.');
     } finally {
       setIsLoading(false);
     }
@@ -262,21 +177,6 @@ export default function Agent2Form() {
           <div className="text-white text-2xl font-bold">שולח...</div>
         </div>
       )}
-      
-      {showStatus && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-white p-4 rounded-lg shadow-lg max-w-md w-full">
-          <div className="text-sm whitespace-pre-line">
-            {statusMessage}
-          </div>
-          <button 
-            onClick={() => setShowStatus(false)}
-            className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
       <div className="container mx-auto px-4">
             <div className="flex justify-center items-center py-6">
                     <Image src="/landing-pic.png" alt="logo" width={500} height={500} className='w-full max-w-3xl' />
@@ -285,6 +185,7 @@ export default function Agent2Form() {
 
             <div className="max-w-[500px] mx-auto bg-white p-8 rounded-lg shadow-md">
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Radio Questions */}
                 <div className="space-y-4">
                   <div>
                     <label className="block font-bold mb-2">הלקוח סיים לעבוד?</label>
@@ -508,6 +409,7 @@ export default function Agent2Form() {
                   </div>
                 </div>
 
+                {/* Personal Information */}
                 <div className="space-y-4">
                   <div>
                     <label className="block font-bold mb-2">שם מלא</label>
@@ -555,6 +457,7 @@ export default function Agent2Form() {
                   </div>
                 </div>
 
+                {/* File Uploads */}
                 <div className="space-y-4">
                   <div className="bg-blue-50 p-4 rounded-md mb-4">
                     <p className="text-sm text-blue-800">
@@ -697,44 +600,23 @@ export default function Agent2Form() {
                     </div>
                   </div>
                 </div>
-                <div className="flex w-full">
+                <div className="flex w-full ">
                   {isLoading ? (
                     <div className="text-lg text-[#0070f3] animate-pulse w-full text-center">
                       שולח נתונים...
                     </div>
-                  ) : (
-                    <div className='w-full'>
-                      <button
-                        type="submit"
-                        className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
-                      >
-                        שלח לבדיקה
-                      </button>
-                    </div>
-                  )}
+                  ):(<div className='w-full'>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
+                    >
+                      שלח לבדיקה
+                    </button>
+                  </div>)}
                 </div>
+                
               </form>
-
-              {/* New Message Area */}
-              {formMessage.content && (
-                <div className={`mt-4 p-4 rounded-lg ${
-                  formMessage.type === 'error' ? 'bg-red-50 text-red-800' : 'bg-green-50 text-green-800'
-                }`}>
-                  <pre className="whitespace-pre-line text-sm">
-                    {formMessage.content}
-                  </pre>
-                </div>
-              )}
-
-              {/* File Details Area */}
-              {fileDetails.length > 0 && (
-                <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-                  <h3 className="font-bold text-blue-800 mb-2">פירוט הקבצים:</h3>
-                  <pre className="whitespace-pre-line text-sm text-blue-800">
-                    {fileDetails.map(f => `${f.name} (${f.type}) - ${f.size}`).join('\n')}
-                  </pre>
-                </div>
-              )}
             </div>
         </div>
     </div>
