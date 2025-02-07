@@ -39,12 +39,29 @@ export default function Agent2Form() {
     const { name, files } = e.target;
     if (files && files[0]) {
       const file = files[0];
-      // Check file size (5MB limit)
+      
+      // Calculate total size of all files after adding this one
+      let totalSize = file.size;
+      Object.keys(formData).forEach(key => {
+        if (key !== name && formData[key] instanceof File) {
+          totalSize += formData[key].size;
+        }
+      });
+
+      // Check individual file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        alert('הקובץ גדול מדי. הגודל המקסימלי הוא 5MB');
+        alert(`הקובץ ${file.name} גדול מדי. הגודל המקסימלי לכל קובץ הוא 5MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה`);
         e.target.value = ''; // Clear the input
         return;
       }
+
+      // Check total size of all files (20MB limit)
+      if (totalSize > 20 * 1024 * 1024) {
+        alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+
       setFormData(prev => ({
         ...prev,
         [name]: file
@@ -60,17 +77,30 @@ export default function Agent2Form() {
     try {
       const formDataToSend = new FormData();
       
-      // Log the form data being prepared
-      console.log('Preparing form data...');
+      // Calculate total file size
+      let totalSize = 0;
+      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      fileFields.forEach(field => {
+        if (formData[field] instanceof File) {
+          totalSize += formData[field].size;
+        }
+      });
+
+      // Check total size before submission
+      if (totalSize > 20 * 1024 * 1024) {
+        alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
+        setIsLoading(false);
+        return;
+      }
+      
+      // Add text fields
       Object.keys(formData).forEach(key => {
         if (typeof formData[key] === 'string') {
           formDataToSend.append(key, formData[key]);
-          console.log(`Adding field ${key}:`, formData[key]);
         }
       });
 
       // Add files with error handling
-      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
       for (const field of fileFields) {
         if (formData[field]) {
           try {
@@ -398,6 +428,17 @@ export default function Agent2Form() {
 
                 {/* File Uploads */}
                 <div className="space-y-4">
+                  <div className="bg-blue-50 p-4 rounded-md mb-4">
+                    <p className="text-sm text-blue-800">
+                      📸 הנחיות להעלאת קבצים:
+                      <br />
+                      • גודל מקסימלי לכל קובץ: 5MB
+                      <br />
+                      • גודל מקסימלי כולל: 20MB
+                      <br />
+                      • אם התמונה גדולה מדי, נסה לצלם באיכות נמוכה יותר
+                    </p>
+                  </div>
                   <div>
                     <label className="block font-bold mb-2">צילום ת.ז - צד 1</label>
                     <div className="flex flex-col gap-2">
