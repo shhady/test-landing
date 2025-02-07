@@ -437,7 +437,7 @@ const handleSubmit = async (e) => {
                   <div>
                     <label className="block font-bold mb-2">מספר ת.ז</label>
                     <input
-                      type="text"
+                      type="tel"
                       name="idNumber"
                       onChange={handleInputChange}
                       className="w-full p-3 border border-gray-300 rounded-md"
@@ -459,7 +459,7 @@ const handleSubmit = async (e) => {
 
                 {/* File Uploads */}
                 <div className="space-y-4">
-                  <div className="bg-blue-50 p-4 rounded-md mb-4">
+                  {/* <div className="bg-blue-50 p-4 rounded-md mb-4">
                     <p className="text-sm text-blue-800">
                       📸 הנחיות להעלאת קבצים:
                       <br />
@@ -479,7 +479,7 @@ const handleSubmit = async (e) => {
                       <br />
                       - להשתמש בתמונה קטנה יותר
                     </p>
-                  </div>
+                  </div> */}
                   <div>
                     <label className="block font-bold mb-2">צילום ת.ז - צד 1</label>
                     <div className="flex flex-col gap-2">
