@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="min-h-screen bg-[#e5f0fe]">
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-20">
         <div className="text-center">
