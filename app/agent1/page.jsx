@@ -56,18 +56,10 @@ export default function Agent2Form() {
         e.target.value = '';
         return;
       } else if (name !== 'bankApproval' && !isImage) {
-        alert('אנא העלה קובץ תמונה עבור אישור הבנק');
+        alert('אנא העלה קובץ תמונה בלבד');
         e.target.value = '';
         return;
       }
-      
-      // Calculate total size of all files after adding this one
-      let totalSize = file.size;
-      Object.keys(formData).forEach(key => {
-        if (key !== name && formData[key] instanceof File) {
-          totalSize += formData[key].size;
-        }
-      });
 
       // Check individual file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
@@ -75,10 +67,23 @@ export default function Agent2Form() {
         e.target.value = '';
         return;
       }
+      
+      // Calculate current total size excluding the file being replaced
+      let currentTotalSize = 0;
+      Object.keys(formData).forEach(key => {
+        if (key !== name && formData[key] instanceof File) {
+          currentTotalSize += formData[key].size;
+        }
+      });
+
+      // Calculate new total size with the new file
+      const newTotalSize = currentTotalSize + file.size;
+      const remainingSize = 20 * 1024 * 1024 - currentTotalSize;
 
       // Check total size of all files (20MB limit)
-      if (totalSize > 20 * 1024 * 1024) {
-        alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
+      if (newTotalSize > 20 * 1024 * 1024) {
+        const remainingSizeMB = (remainingSize / (1024 * 1024)).toFixed(2);
+        alert(`הגודל הכולל של כל הקבצים יחרוג מהמגבלה של 20MB\nנשאר לך ${remainingSizeMB}MB להעלאה\nנסה להעלות תמונה קטנה יותר או לדחוס את התמונה הנוכחית`);
         e.target.value = '';
         return;
       }
@@ -87,6 +92,11 @@ export default function Agent2Form() {
         ...prev,
         [name]: file
       }));
+
+      // Show current total size after successful upload
+      const totalSizeMB = (newTotalSize / (1024 * 1024)).toFixed(2);
+      const remainingSizeMB = ((20 * 1024 * 1024 - newTotalSize) / (1024 * 1024)).toFixed(2);
+      console.log(`Total size: ${totalSizeMB}MB / 20MB (${remainingSizeMB}MB remaining)`);
     }
   };
 
@@ -108,7 +118,7 @@ export default function Agent2Form() {
           console.log(`Processing ${field}:`, {
             name: file.name,
             type: file.type,
-            size: file.size
+            size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
           });
           totalSize += file.size;
         }
@@ -116,7 +126,8 @@ export default function Agent2Form() {
 
       // Check total size before submission
       if (totalSize > 20 * 1024 * 1024) {
-        alert('הגודל הכולל של כל הקבצים גדול מדי. הגודל המקסימלי הכולל הוא 20MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונות');
+        const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
+        alert(`הגודל הכולל של הקבצים (${totalSizeMB}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
         setIsLoading(false);
         return;
       }
@@ -470,7 +481,13 @@ export default function Agent2Form() {
                       <br />
                       • עבור אישור בנק: תמונה או PDF
                       <br />
-                      • אם התמונה גדולה מדי, נסה לצלם באיכות נמוכה יותר
+                      • אם התמונה גדולה מדי, נסה:
+                      <br />
+                      - לצלם באיכות נמוכה יותר
+                      <br />
+                      - לדחוס את התמונה
+                      <br />
+                      - להשתמש בתמונה קטנה יותר
                     </p>
                   </div>
                   <div>
