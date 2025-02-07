@@ -40,11 +40,11 @@ export default function Agent2Form() {
     if (files && files[0]) {
       const file = files[0];
       
-      // Log file information for debugging
-      console.log('File details:', {
+      // Enhanced debug logging
+      console.log('New file details:', {
         name: file.name,
         type: file.type,
-        size: file.size
+        size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
       });
 
       // Simple check if it's an image or PDF
@@ -62,8 +62,9 @@ export default function Agent2Form() {
       }
 
       // Check individual file size (5MB limit)
-      if (file.size > 5 * 1024 * 1024) {
-        alert(`הקובץ ${file.name} גדול מדי. הגודל המקסימלי לכל קובץ הוא 5MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה`);
+      const fileSizeMB = file.size / (1024 * 1024);
+      if (fileSizeMB > 5) {
+        alert(`הקובץ ${file.name} גדול מדי (${fileSizeMB.toFixed(2)}MB). הגודל המקסימלי לכל קובץ הוא 5MB\nנסה לצלם שוב עם איכות נמוכה יותר או לדחוס את התמונה`);
         e.target.value = '';
         return;
       }
@@ -72,18 +73,34 @@ export default function Agent2Form() {
       let currentTotalSize = 0;
       Object.keys(formData).forEach(key => {
         if (key !== name && formData[key] instanceof File) {
+          const size = formData[key].size / (1024 * 1024);
+          console.log(`Existing file ${key}:`, {
+            name: formData[key].name,
+            size: size.toFixed(2) + 'MB'
+          });
           currentTotalSize += formData[key].size;
         }
       });
 
       // Calculate new total size with the new file
       const newTotalSize = currentTotalSize + file.size;
+      const newTotalSizeMB = newTotalSize / (1024 * 1024);
       const remainingSize = 20 * 1024 * 1024 - currentTotalSize;
+      const remainingSizeMB = remainingSize / (1024 * 1024);
+
+      console.log('Size calculations:', {
+        currentTotal: (currentTotalSize / (1024 * 1024)).toFixed(2) + 'MB',
+        newTotal: newTotalSizeMB.toFixed(2) + 'MB',
+        remaining: remainingSizeMB.toFixed(2) + 'MB'
+      });
 
       // Check total size of all files (20MB limit)
-      if (newTotalSize > 20 * 1024 * 1024) {
-        const remainingSizeMB = (remainingSize / (1024 * 1024)).toFixed(2);
-        alert(`הגודל הכולל של כל הקבצים יחרוג מהמגבלה של 20MB\nנשאר לך ${remainingSizeMB}MB להעלאה\nנסה להעלות תמונה קטנה יותר או לדחוס את התמונה הנוכחית`);
+      if (newTotalSizeMB > 20) {
+        alert(`הגודל הכולל של כל הקבצים יחרוג מהמגבלה של 20MB
+סך הכל כרגע: ${(currentTotalSize / (1024 * 1024)).toFixed(2)}MB
+גודל הקובץ החדש: ${fileSizeMB.toFixed(2)}MB
+נשאר לך: ${remainingSizeMB.toFixed(2)}MB להעלאה
+נסה להעלות תמונה קטנה יותר או לדחוס את התמונה הנוכחית`);
         e.target.value = '';
         return;
       }
@@ -94,9 +111,10 @@ export default function Agent2Form() {
       }));
 
       // Show current total size after successful upload
-      const totalSizeMB = (newTotalSize / (1024 * 1024)).toFixed(2);
-      const remainingSizeMB = ((20 * 1024 * 1024 - newTotalSize) / (1024 * 1024)).toFixed(2);
-      console.log(`Total size: ${totalSizeMB}MB / 20MB (${remainingSizeMB}MB remaining)`);
+      console.log('After upload:', {
+        totalSize: newTotalSizeMB.toFixed(2) + 'MB',
+        remaining: (20 - newTotalSizeMB).toFixed(2) + 'MB'
+      });
     }
   };
 
@@ -108,26 +126,30 @@ export default function Agent2Form() {
     try {
       const formDataToSend = new FormData();
       
-      // Calculate total file size and validate files
+      // Calculate total file size and validate files with detailed logging
       let totalSize = 0;
       const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
       
+      console.log('Checking files before submission:');
       for (const field of fileFields) {
         const file = formData[field];
         if (file) {
-          console.log(`Processing ${field}:`, {
+          const fileSizeMB = file.size / (1024 * 1024);
+          console.log(`${field}:`, {
             name: file.name,
             type: file.type,
-            size: (file.size / (1024 * 1024)).toFixed(2) + 'MB'
+            size: fileSizeMB.toFixed(2) + 'MB'
           });
           totalSize += file.size;
         }
       }
 
+      const totalSizeMB = totalSize / (1024 * 1024);
+      console.log('Total size before submission:', totalSizeMB.toFixed(2) + 'MB');
+
       // Check total size before submission
-      if (totalSize > 20 * 1024 * 1024) {
-        const totalSizeMB = (totalSize / (1024 * 1024)).toFixed(2);
-        alert(`הגודל הכולל של הקבצים (${totalSizeMB}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
+      if (totalSizeMB > 20) {
+        alert(`הגודל הכולל של הקבצים (${totalSizeMB.toFixed(2)}MB) חורג מהמגבלה של 20MB\nאנא העלה תמונות קטנות יותר`);
         setIsLoading(false);
         return;
       }
