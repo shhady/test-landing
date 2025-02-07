@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
 const resendApiKey = process.env.RESEND_API_KEY;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 if (!resendApiKey) {
   console.error('Missing RESEND_API_KEY environment variable');
@@ -32,16 +33,28 @@ export async function POST(request) {
     console.log('Processing file attachments...');
     for (const file of files) {
       const uploadedFile = formData.get(file);
-      if (uploadedFile) {
-        console.log(`Processing file: ${file}, name: ${uploadedFile.name}`);
+      if (uploadedFile && uploadedFile instanceof Blob) {
+        console.log(`Processing file: ${file}, size: ${uploadedFile.size} bytes`);
+        
+        if (uploadedFile.size > MAX_FILE_SIZE) {
+          return NextResponse.json(
+            { error: `File ${file} is too large. Maximum size is 5MB` },
+            { status: 400 }
+          );
+        }
+
         try {
           const buffer = await uploadedFile.arrayBuffer();
           attachments.push({
-            filename: uploadedFile.name,
+            filename: uploadedFile.name || `${file}.jpg`,
             content: Buffer.from(buffer)
           });
         } catch (fileError) {
           console.error(`Error processing file ${file}:`, fileError);
+          return NextResponse.json(
+            { error: `Error processing file ${file}: ${fileError.message}` },
+            { status: 400 }
+          );
         }
       }
     }

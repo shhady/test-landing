@@ -37,10 +37,19 @@ export default function Agent2Form() {
 
   const handleFileChange = (e) => {
     const { name, files } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: files[0]
-    }));
+    if (files && files[0]) {
+      const file = files[0];
+      // Check file size (5MB limit)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('הקובץ גדול מדי. הגודל המקסימלי הוא 5MB');
+        e.target.value = ''; // Clear the input
+        return;
+      }
+      setFormData(prev => ({
+        ...prev,
+        [name]: file
+      }));
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -60,22 +69,19 @@ export default function Agent2Form() {
         }
       });
 
-      // Log file attachments
-      if (formData.idFront) {
-        console.log('Adding idFront:', formData.idFront.name);
-        formDataToSend.append('idFront', formData.idFront);
-      }
-      if (formData.idBack) {
-        console.log('Adding idBack:', formData.idBack.name);
-        formDataToSend.append('idBack', formData.idBack);
-      }
-      if (formData.idAttachment) {
-        console.log('Adding idAttachment:', formData.idAttachment.name);
-        formDataToSend.append('idAttachment', formData.idAttachment);
-      }
-      if (formData.bankApproval) {
-        console.log('Adding bankApproval:', formData.bankApproval.name);
-        formDataToSend.append('bankApproval', formData.bankApproval);
+      // Add files with error handling
+      const fileFields = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      for (const field of fileFields) {
+        if (formData[field]) {
+          try {
+            formDataToSend.append(field, formData[field]);
+          } catch (error) {
+            console.error(`Error adding file ${field}:`, error);
+            alert('שגיאה בהעלאת הקבצים. אנא נסה שוב.');
+            setIsLoading(false);
+            return;
+          }
+        }
       }
 
       console.log('Sending request to API...');
@@ -415,6 +421,8 @@ export default function Agent2Form() {
                         type="file"
                         name="idFront"
                         onChange={handleFileChange}
+                        accept="image/*"
+                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -444,6 +452,8 @@ export default function Agent2Form() {
                         type="file"
                         name="idBack"
                         onChange={handleFileChange}
+                        accept="image/*"
+                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -473,6 +483,8 @@ export default function Agent2Form() {
                         type="file"
                         name="idAttachment"
                         onChange={handleFileChange}
+                        accept="image/*"
+                        capture="environment"
                         className="hidden"
                         required
                       />
@@ -502,6 +514,8 @@ export default function Agent2Form() {
                         type="file"
                         name="bankApproval"
                         onChange={handleFileChange}
+                        accept="application/pdf"
+                        capture="environment"
                         className="hidden"
                         required
                       />
