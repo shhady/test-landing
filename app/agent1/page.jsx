@@ -142,22 +142,30 @@ export default function Agent2Form() {
     const file = files[0];
     
     try {
-      // Update progress callback
+      // Special handling for bank approval PDF
+      if (name === 'bankApproval' && file.type === 'application/pdf') {
+        // For PDFs, store the file directly
+        setUploadedFiles(prev => ({
+          ...prev,
+          [name]: file
+        }));
+        setUploadProgress(prev => ({ ...prev, [name]: 100 }));
+        return;
+      }
+
+      // For images, proceed with Cloudinary upload
       const updateProgress = (progress) => {
         setUploadProgress(prev => ({ ...prev, [name]: progress }));
       };
 
-      // Start upload with progress tracking
       updateProgress(1);
       const url = await uploadToCloudinary(file, updateProgress);
       
-      // Update uploaded files state
       setUploadedFiles(prev => ({
         ...prev,
         [name]: url
       }));
 
-      // Don't show success message for individual file uploads
       setUploadProgress(prev => ({ ...prev, [name]: 100 }));
     } catch (error) {
       console.error('Upload error:', error);
@@ -167,7 +175,6 @@ export default function Agent2Form() {
       });
       setUploadProgress(prev => ({ ...prev, [name]: 0 }));
       
-      // Clear the input to allow retrying
       const input = document.getElementById(name);
       if (input) input.value = '';
     }
@@ -176,46 +183,53 @@ export default function Agent2Form() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      // Check if all required files are uploaded
-      const requiredFiles = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
-      const missingFiles = requiredFiles.filter(field => !uploadedFiles[field]);
+      // Create FormData object for PDF case
+      const formDataToSend = new FormData();
       
-      if (missingFiles.length > 0) {
-        throw new Error('חסרים קבצים נדרשים');
+      // Add all form fields to FormData
+      Object.entries(formData).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          formDataToSend.append(key, value);
+        }
+      });
+
+      // Handle bank approval file
+      const bankApprovalFile = uploadedFiles.bankApproval;
+      if (bankApprovalFile) {
+        if (bankApprovalFile.type === 'application/pdf') {
+          formDataToSend.append('bankApprovalPdf', bankApprovalFile);
+          formDataToSend.set('bankApproval', 'pdf-attachment');
+        } else {
+          formDataToSend.set('bankApproval', uploadedFiles.bankApproval);
+        }
       }
 
-      // Prepare payload with already uploaded file URLs
-      const payload = {
-        ...Object.fromEntries(
-          Object.entries(formData).filter(([_, value]) => !(value instanceof File))
-        ),
-        ...uploadedFiles
-      };
-
-      setFormMessage({ type: 'info', content: 'שולח טופס...' });
+      // Add other uploaded files
+      if (uploadedFiles.idFront) formDataToSend.set('idFront', uploadedFiles.idFront);
+      if (uploadedFiles.idBack) formDataToSend.set('idBack', uploadedFiles.idBack);
+      if (uploadedFiles.idAttachment) formDataToSend.set('idAttachment', uploadedFiles.idAttachment);
 
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        headers: {
+        headers: bankApprovalFile?.type === 'application/pdf' ? {} : {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(payload),
+        body: bankApprovalFile?.type === 'application/pdf' ? 
+          formDataToSend : 
+          JSON.stringify(Object.fromEntries(formDataToSend))
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        throw new Error('Network response was not ok');
       }
 
-      // Show success message
-      setIsLoading(false);
       setFormMessage({
         type: 'success',
         content: 'הטופס נשלח בהצלחה!'
       });
 
-      // Clear form and redirect after 5 seconds
       setTimeout(() => {
         setFormData({
           finishedWork: '',
@@ -250,13 +264,14 @@ export default function Agent2Form() {
           bankApproval: 0
         });
         router.push('/');
-      }, 3000); // Changed from 2000 to 5000 milliseconds
+      }, 5000);
     } catch (error) {
       console.error('Error:', error);
       setFormMessage({
         type: 'error',
-        content: error.message || 'שגיאה בשליחת הטופס. אנא נסה שוב.'
+        content: 'אירעה שגיאה בשליחת הטופס. אנא נסה שוב.'
       });
+    } finally {
       setIsLoading(false);
     }
   };
@@ -614,15 +629,29 @@ export default function Agent2Form() {
                           <div className="relative w-24 h-24 border rounded-md overflow-hidden">
                             {uploadedFiles[field] ? (
                               <>
-                                <img
-                                  src={uploadedFiles[field]}
-                                  alt={`Preview ${field}`}
-                                  className="w-full h-full object-cover"
-                                />
+                                {field === 'bankApproval' && uploadedFiles[field] instanceof File ? (
+                                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                    <div className="text-center">
+                                      <div className="flex flex-col items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-[#1b283c]" viewBox="0 0 24 24" fill="currentColor">
+                                          <path d="M7 3C5.34315 3 4 4.34315 4 6V18C4 19.6569 5.34315 21 7 21H17C18.6569 21 20 19.6569 20 18V9.82843C20 9.29799 19.7893 8.78929 19.4142 8.41421L14.5858 3.58579C14.2107 3.21071 13.702 3 13.1716 3H7Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                          <path d="M14 3V7C14 8.10457 14.8954 9 16 9H20" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                        </svg>
+                                        <span className="text-xs mt-1 text-[#1b283c] font-medium">PDF</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <img
+                                    src={uploadedFiles[field]}
+                                    alt={`Preview ${field}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => deleteFile(field)}
-                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
                                 >
                                   ×
                                 </button>

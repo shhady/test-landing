@@ -1,6 +1,6 @@
 export const config = {
   api: {
-    bodyParser: true
+    bodyParser: false
   },
 };
 
@@ -19,36 +19,59 @@ export async function POST(request) {
   }
 
   try {
-    const body = await request.json();
-    console.log('Processing form submission...');
+    let body;
+    let bankApprovalPdf;
+
+    // Check if the request is multipart form data
+    const contentType = request.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      bankApprovalPdf = formData.get('bankApprovalPdf');
+      
+      // Convert form data to object
+      body = {};
+      for (let [key, value] of formData.entries()) {
+        if (key !== 'bankApprovalPdf') {
+          // Convert 'null' and 'undefined' strings to actual null
+          body[key] = value === 'null' || value === 'undefined' ? null : value;
+        }
+      }
+    } else {
+      body = await request.json();
+    }
+
+    console.log('Processing form submission with data:', {
+      ...body,
+      bankApprovalPdf: bankApprovalPdf ? 'PDF File Present' : 'No PDF'
+    });
 
     const emailContent = `<div dir="rtl" style="text-align: right; direction: rtl; font-family: Arial, sans-serif;">
       <h1 style="color: #333; border-bottom: 2px solid #1b283c; padding-bottom: 10px;">פרטי טופס חדש</h1>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">⚡ סטטוס תעסוקה</h3>
-        <p>• סיים לעבוד: ${body.finishedWork}</p>
+        <p>• סיים לעבוד: ${body.finishedWork || 'לא צוין'}</p>
         <p>• תאריך סיום: ${body.endDate || 'לא צוין'}</p>
-        <p>• טפסי 161: ${body.closingPapers}</p>
-        <p>• עובד כיום: ${body.currentEmploymentStatus}</p>
+        <p>• טפסי 161: ${body.closingPapers || 'לא צוין'}</p>
+        <p>• עובד כיום: ${body.currentEmploymentStatus || 'לא צוין'}</p>
         <p>• משכורת נוכחית: ${body.salary || 'לא צוין'}</p>
         <p>• מעסיק נוכחי: ${body.employerName || 'לא צוין'}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">🏥 מצב רפואי ופיננסי</h3>
-        <p>• בעיות משפטיות: ${body.financialIssues}</p>
-        <p>• נכות: ${body.disability}</p>
-        <p>• תביעת נכות: ${body.disabilityClaim}</p>
+        <p>• בעיות משפטיות: ${body.financialIssues || 'לא צוין'}</p>
+        <p>• נכות: ${body.disability || 'לא צוין'}</p>
+        <p>• תביעת נכות: ${body.disabilityClaim || 'לא צוין'}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">👤 פרטים אישיים</h3>
-        <p>• שם מלא: ${body.fullName}</p>
-        <p>• טלפון: ${body.phone}</p>
-        <p>• ת.ז: ${body.idNumber}</p>
-        <p>• עיר: ${body.city}</p>
-        <p>• מוכן לשיחה: ${body.transparentCall}</p>
+        <p>• שם מלא: ${body.fullName || 'לא צוין'}</p>
+        <p>• טלפון: ${body.phone || 'לא צוין'}</p>
+        <p>• ת.ז: ${body.idNumber || 'לא צוין'}</p>
+        <p>• עיר: ${body.city || 'לא צוין'}</p>
+        <p>• מוכן לשיחה: ${body.transparentCall || 'לא צוין'}</p>
       </div>
 
       <div style="margin: 20px 0;">
@@ -59,7 +82,6 @@ export async function POST(request) {
             <a href="${body.idFront}" target="_blank" style="color: #0070f3; text-decoration: none; margin-right: 10px;">
               👁️ צפייה
             </a>
-          
           </p>
           
           <p style="margin: 10px 0;">
@@ -67,7 +89,6 @@ export async function POST(request) {
             <a href="${body.idBack}" target="_blank" style="color: #0070f3; text-decoration: none; margin-right: 10px;">
               👁️ צפייה
             </a>
-           
           </p>
           
           <p style="margin: 10px 0;">
@@ -75,28 +96,42 @@ export async function POST(request) {
             <a href="${body.idAttachment}" target="_blank" style="color: #0070f3; text-decoration: none; margin-right: 10px;">
               👁️ צפייה
             </a>
-           
           </p>
           
           <p style="margin: 10px 0;">
             <strong>אישור ניהול חשבון בנק:</strong><br>
-            <a href="${body.bankApproval}" target="_blank" style="color: #0070f3; text-decoration: none; margin-right: 10px;">
-              👁️ צפייה
-            </a>
-         
+            ${body.bankApproval === 'pdf-attachment' ? 
+              '(מצורף כקובץ PDF)' : 
+              `<a href="${body.bankApproval}" target="_blank" style="color: #0070f3; text-decoration: none; margin-right: 10px;">
+                👁️ צפייה
+              </a>`
+            }
           </p>
         </div>
       </div>
     </div>`;
 
-    const data = await resend.emails.send({
+    const emailOptions = {
       from: 'onboarding@resend.dev',
       to: 'shhadytours@gmail.com',
       subject: `טופס חדש - ${body.fullName}`,
-      html: emailContent
-    });
+      html: emailContent,
+    };
 
-    console.log('Email sent successfully');
+    // Add PDF attachment if exists
+    if (bankApprovalPdf) {
+      const pdfBuffer = await bankApprovalPdf.arrayBuffer();
+      emailOptions.attachments = [{
+        filename: `bank-approval-${body.fullName}.pdf`,
+        content: Buffer.from(pdfBuffer),
+        contentType: 'application/pdf',
+      }];
+    }
+
+    console.log('Sending email with options:', { ...emailOptions, attachments: emailOptions.attachments ? 'PDF Attached' : 'No PDF' });
+    const data = await resend.emails.send(emailOptions);
+    console.log('Email sent successfully:', data);
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error processing request:', error);
