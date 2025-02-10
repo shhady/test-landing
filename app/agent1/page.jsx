@@ -277,7 +277,7 @@ export default function Agent2Form() {
   };
 
   return (
-    <div className="min-h-screen bg-[#e5f0fe]" dir="rtl">
+    <div className="min-h-screen bg-[#e5f0fe] mb-6" dir="rtl">
       {isLoading && (
         <div className="fixed w-full top-0 left-0 inset-0 bg-black opacity-60 backdrop-blur-sm z-50 flex flex-col items-center justify-center" style={{ pointerEvents: 'auto' }}>
           <div className="w-16 h-16 border-4 border-[#0070f3] border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -302,7 +302,7 @@ export default function Agent2Form() {
             </div>
             <h1 className="text-2xl font-bold text-center mb-6">תהליך למשיכת כספים הוא פשוט וקל</h1>
 
-            <div className="max-w-[500px] mx-auto">
+            <div className="max-w-[500px] mx-auto ">
               <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md space-y-4">
                 {/* Radio Questions */}
                 <div className="space-y-4">
@@ -683,7 +683,7 @@ export default function Agent2Form() {
                     <div className='w-full'>
                       <button
                         type="submit"
-                        className="w-full py-3 px-4 bg-[#1b283c] text-white rounded-md hover:bg-[#005cc5] transition-colors"
+                        className="w-full py-3 px-4 bg-[#8dc63f] text-white rounded-md hover:bg-[#87be3b] transition-colors"
                       >
                         שלח לבדיקה
                       </button>
