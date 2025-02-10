@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["file://C%3A/Users/shhad/OneDrive/Desktop/test-landing/app/%5BagentName%5D/layout.jsx"],"sourcesContent":["export default function AgentLayout({ children }) {\r\n  return (\r\n    <div className=\"min-h-screen bg-[#e5f0fe]\">\r\n      {children}\r\n    </div>\r\n  );\r\n} "],"names":[],"mappings":";;;;;AAAe,SAAS,YAAY,EAAE,QAAQ,EAAE;IAC9C,qBACE,8OAAC;QAAI,WAAU;kBACZ;;;;;;AAGP"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

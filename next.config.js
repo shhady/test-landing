@@ -6,7 +6,10 @@ const nextConfig = {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   },
   experimental: {
-    serverActions: true
+    serverActions: {
+      allowedOrigins: ['*'],
+      bodySizeLimit: '10mb'
+    }
   },
   images: {
     domains: ['res.cloudinary.com'],

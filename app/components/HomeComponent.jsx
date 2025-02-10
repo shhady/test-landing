@@ -1,32 +1,34 @@
 'use client';
 import Image from 'next/image'
-import React, { Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import React from 'react'
+import { useParams } from 'next/navigation'
+import { allowedAgents } from '../config/agents'
 
 function ErrorMessage() {
-  const searchParams = useSearchParams();
-  const error = searchParams.get('error');
-
-  if (error === 'invalid-agent') {
-    return (
+  return (
+    <div className="min-h-screen bg-[#e5f0fe] flex flex-col items-center justify-center">
       <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
         הקישור אינו תקין. אנא פנה לסוכן מורשה.
       </div>
-    );
-  }
-  return null;
+    </div>
+  );
 }
 
 export default function HomeComponent({setShowForm}) {
+  const params = useParams();
+  const agentName = params?.agentName;
+
+  // If there's an agent name but it's not in the allowed list
+  if (agentName && !allowedAgents.some(agent => agent.id === agentName)) {
+    return <ErrorMessage />;
+  }
+
   return (
     <div className="min-h-screen bg-[#e5f0fe] flex flex-col items-center justify-center">
       <div className="text-center px-4">
-        <Suspense fallback={null}>
-          <ErrorMessage />
-        </Suspense>
         <div className="mb-8">
           <Image 
-            src="/banner.png"
+            src="/banner.png" 
             alt="logo" 
             width={500} 
             height={500} 
