@@ -25,7 +25,14 @@ export default function HomeComponent({setShowForm}) {
           <ErrorMessage />
         </Suspense>
         <div className="mb-8">
-          <Image src="/banner.png" alt="logo" width={500} height={500} className="w-full max-w-xl mx-auto" />
+          <Image 
+            src="/banner.png"
+            alt="logo" 
+            width={500} 
+            height={500} 
+            className="w-full max-w-xl mx-auto"
+            priority
+          />
         </div>
         <h1 className="text-3xl font-bold mb-6 text-gray-800">
           הכסף שלכם

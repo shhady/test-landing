@@ -436,7 +436,14 @@ export default function Agent2Form({ agentName , setShowForm}) {
       
       <div className="container mx-auto px-4">
             <div className="flex justify-center items-center py-6">
-                    <Image src="/banner.png" alt="logo" width={500} height={500} className='w-full max-w-3xl' />
+                    <Image 
+                      src="/banner.png"
+                      alt="logo" 
+                      width={500} 
+                      height={500} 
+                      className='w-full max-w-3xl'
+                      priority
+                    />
             </div>
             <h1 className="text-2xl font-bold text-center mb-6">תהליך למשיכת כספים הוא פשוט וקל</h1>
 
