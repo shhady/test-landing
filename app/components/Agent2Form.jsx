@@ -62,7 +62,7 @@ const uploadFiles = async (files) => {
   return Object.fromEntries(results.filter(([_, url]) => url !== null));
 };
 
-export default function Agent2Form() {
+export default function Agent2Form({ agentName , setShowForm}) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [formMessage, setFormMessage] = useState({ type: '', content: '' });
@@ -104,6 +104,13 @@ export default function Agent2Form() {
     idBack: 0,
     idAttachment: 0,
     bankApproval: 0
+  });
+
+  const [uploadErrors, setUploadErrors] = useState({
+    idFront: false,
+    idBack: false,
+    idAttachment: false,
+    bankApproval: false
   });
 
   const validateField = (name, value) => {
@@ -252,6 +259,9 @@ export default function Agent2Form() {
     const file = files[0];
     
     try {
+      // Clear error for this field when upload starts
+      setUploadErrors(prev => ({ ...prev, [name]: false }));
+
       // Special handling for bank approval PDF
       if (name === 'bankApproval' && file.type === 'application/pdf') {
         // For PDFs, store the file directly
@@ -279,10 +289,7 @@ export default function Agent2Form() {
       setUploadProgress(prev => ({ ...prev, [name]: 100 }));
     } catch (error) {
       console.error('Upload error:', error);
-      setFormMessage({
-        type: 'error',
-        content: error.message || `שגיאה בהעלאת הקובץ ${file.name}`
-      });
+      setUploadErrors(prev => ({ ...prev, [name]: true }));
       setUploadProgress(prev => ({ ...prev, [name]: 0 }));
       
       const input = document.getElementById(name);
@@ -295,8 +302,27 @@ export default function Agent2Form() {
     setIsLoading(true);
 
     try {
-      // Create FormData object for PDF case
+      // Check for required files
+      const requiredFiles = ['idFront', 'idBack', 'idAttachment', 'bankApproval'];
+      const missingFiles = requiredFiles.filter(field => !uploadedFiles[field]);
+
+      if (missingFiles.length > 0) {
+        // Set error messages for each missing file
+        const fileErrors = {};
+        missingFiles.forEach(field => {
+          fileErrors[field] = true;
+        });
+        setUploadErrors(fileErrors);
+        setIsLoading(false);
+        return;
+      }
+
       const formDataToSend = new FormData();
+      
+      // Add agent name to form data if provided
+      if (agentName) {
+        formDataToSend.append('agentName', agentName);
+      }
       
       // Add all form fields to FormData
       Object.entries(formData).forEach(([key, value]) => {
@@ -308,7 +334,7 @@ export default function Agent2Form() {
       // Handle bank approval file
       const bankApprovalFile = uploadedFiles.bankApproval;
       if (bankApprovalFile) {
-        if (bankApprovalFile.type === 'application/pdf') {
+        if (bankApprovalFile instanceof File) {
           formDataToSend.append('bankApprovalPdf', bankApprovalFile);
           formDataToSend.set('bankApproval', 'pdf-attachment');
         } else {
@@ -323,10 +349,10 @@ export default function Agent2Form() {
 
       const response = await fetch('/api/send-email', {
         method: 'POST',
-        headers: bankApprovalFile?.type === 'application/pdf' ? {} : {
+        headers: bankApprovalFile instanceof File ? {} : {
           'Content-Type': 'application/json',
         },
-        body: bankApprovalFile?.type === 'application/pdf' ? 
+        body: bankApprovalFile instanceof File ? 
           formDataToSend : 
           JSON.stringify(Object.fromEntries(formDataToSend))
       });
@@ -373,8 +399,10 @@ export default function Agent2Form() {
           idAttachment: 0,
           bankApproval: 0
         });
-        router.push('/');
-      }, 5000);
+        // router.push(`/${agentName} `);
+        setShowForm(false);
+      }, 3000);
+
     } catch (error) {
       console.error('Error:', error);
       setFormMessage({
@@ -661,7 +689,7 @@ export default function Agent2Form() {
                       value={formData.phone}
                       onChange={handleInputChange}
                       className={`w-full p-3 border ${validationErrors.phone ? 'border-red-500' : 'border-gray-300'} rounded-md`}
-                      placeholder="0XXXXXXXXX"
+                      placeholder="XXXXXXXXXX"
                       maxLength="10"
                       required
                     />
@@ -701,15 +729,6 @@ export default function Agent2Form() {
 
                 {/* File Uploads */}
                 <div className="space-y-4">
-                  {/* <div className="bg-blue-50 p-4 rounded-md mb-4">
-                    <p className="text-sm text-blue-800">
-                      📸 הנחיות להעלאת קבצים:
-                        <br />
-                        • גודל מקסימלי לכל קובץ: 5MB
-                        <br />
-                        • ניתן להעלות תמונות או PDF
-                    </p>
-                  </div> */}
                   {['idFront', 'idBack', 'idAttachment', 'bankApproval'].map((field) => (
                     <div key={field} className="relative">
                       <label className="block font-bold mb-2">
@@ -718,79 +737,94 @@ export default function Agent2Form() {
                         {field === 'idAttachment' && 'צילום ספח ת.ז'}
                         {field === 'bankApproval' && 'אישור ניהול חשבון בנק'}
                       </label>
-                      <div className="flex items-start gap-4">
-                        <div className="flex-1">
-                          <button
-                            type="button"
-                            onClick={() => document.getElementById(field).click()}
-                            className={`w-1/2 py-2 px-4 ${
-                              uploadProgress[field] > 0 && uploadProgress[field] < 100
-                                ? 'bg-gray-400'
-                                : 'bg-[#1b283c] hover:bg-[#2a3b52]'
-                            } text-white rounded-md transition-colors flex items-center justify-center gap-2`}
-                            disabled={uploadProgress[field] > 0 && uploadProgress[field] < 100}
-                          >
-                            {uploadProgress[field] > 0 && uploadProgress[field] < 100 ? (
-                              <span>מעלה... {uploadProgress[field]}%</span>
-                            ) : (
-                              <span>העלה {field === 'bankApproval' ? 'קובץ' : 'תמונה'} +</span>
-                            )}
-                          </button>
-                          <input
-                            id={field}
-                            type="file"
-                            name={field}
-                            onChange={handleFileChange}
-                            accept={field === 'bankApproval' ? "application/pdf,image/*" : "image/*"}
-                            className="hidden"
-                            required={!uploadedFiles[field]}
-                          />
-                        </div>
-                        
-                        {/* Preview and progress section */}
-                        {(uploadProgress[field] > 0 || uploadedFiles[field]) && (
-                          <div className="relative w-24 h-24 border rounded-md overflow-hidden">
-                            {uploadedFiles[field] ? (
-                              <>
-                                {field === 'bankApproval' && uploadedFiles[field] instanceof File ? (
-                                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                    <div className="text-center">
-                                      <div className="flex flex-col items-center justify-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-[#1b283c]" viewBox="0 0 24 24" fill="currentColor">
-                                          <path d="M7 3C5.34315 3 4 4.34315 4 6V18C4 19.6569 5.34315 21 7 21H17C18.6569 21 20 19.6569 20 18V9.82843C20 9.29799 19.7893 8.78929 19.4142 8.41421L14.5858 3.58579C14.2107 3.21071 13.702 3 13.1716 3H7Z" stroke="currentColor" strokeWidth="2" fill="none"/>
-                                          <path d="M14 3V7C14 8.10457 14.8954 9 16 9H20" stroke="currentColor" strokeWidth="2" fill="none"/>
-                                        </svg>
-                                        <span className="text-xs mt-1 text-[#1b283c] font-medium">PDF</span>
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1">
+                            <button
+                              type="button"
+                              onClick={() => document.getElementById(field).click()}
+                              className={`w-1/2 py-2 px-4 ${
+                                uploadProgress[field] > 0 && uploadProgress[field] < 100
+                                  ? 'bg-gray-400'
+                                  : uploadErrors[field]
+                                  ? 'bg-red-500 hover:bg-red-600'
+                                  : 'bg-[#1b283c] hover:bg-[#2a3b52]'
+                              } text-white rounded-md transition-colors flex items-center justify-center gap-2`}
+                              disabled={uploadProgress[field] > 0 && uploadProgress[field] < 100}
+                            >
+                              {uploadProgress[field] > 0 && uploadProgress[field] < 100 ? (
+                                <span>מעלה... {uploadProgress[field]}%</span>
+                              ) : (
+                                <span>העלה {field === 'bankApproval' ? 'קובץ' : 'תמונה'} +</span>
+                              )}
+                            </button>
+                            <input
+                              id={field}
+                              type="file"
+                              name={field}
+                              onChange={handleFileChange}
+                              accept={field === 'bankApproval' ? "application/pdf,image/*" : "image/*"}
+                              className="hidden"
+                            />
+                          </div>
+                          
+                          {/* Preview and progress section */}
+                          {(uploadProgress[field] > 0 || uploadedFiles[field]) && (
+                            <div className="relative w-24 h-24 border rounded-md overflow-hidden">
+                              {uploadedFiles[field] ? (
+                                <>
+                                  {field === 'bankApproval' && uploadedFiles[field] instanceof File ? (
+                                    <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                      <div className="text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12 text-[#1b283c]" viewBox="0 0 24 24" fill="currentColor">
+                                            <path d="M7 3C5.34315 3 4 4.34315 4 6V18C4 19.6569 5.34315 21 7 21H17C18.6569 21 20 19.6569 20 18V9.82843C20 9.29799 19.7893 8.78929 19.4142 8.41421L14.5858 3.58579C14.2107 3.21071 13.702 3 13.1716 3H7Z" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                            <path d="M14 3V7C14 8.10457 14.8954 9 16 9H20" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                          </svg>
+                                          <span className="text-xs mt-1 text-[#1b283c] font-medium">PDF</span>
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                ) : (
-                                  <img
-                                    src={uploadedFiles[field]}
-                                    alt={`Preview ${field}`}
-                                    className="w-full h-full object-cover"
-                                  />
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => deleteFile(field)}
-                                  className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                                >
-                                  ×
-                                </button>
-                              </>
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                                <div className="w-full px-2">
-                                  <div className="bg-gray-200 rounded-full h-2.5">
-                                    <div
-                                      className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                                      style={{ width: `${uploadProgress[field]}%` }}
-                                    ></div>
+                                  ) : (
+                                    <img
+                                      src={uploadedFiles[field]}
+                                      alt={`Preview ${field}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  )}
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteFile(field)}
+                                    className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                                  >
+                                    ×
+                                  </button>
+                                </>
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                                  <div className="w-full px-2">
+                                    <div className="bg-gray-200 rounded-full h-2.5">
+                                      <div
+                                        className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
+                                        style={{ width: `${uploadProgress[field]}%` }}
+                                      ></div>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Error message */}
+                        {uploadErrors[field] && (
+                          <div className="text-red-500 text-sm">
+                            נדרש להעלות {
+                              field === 'idFront' ? 'צילום ת.ז - צד 1' :
+                              field === 'idBack' ? 'צילום ת.ז - צד 2' :
+                              field === 'idAttachment' ? 'צילום ספח ת.ז' :
+                              'אישור ניהול חשבון בנק'
+                            }
                           </div>
                         )}
                       </div>
@@ -814,15 +848,6 @@ export default function Agent2Form() {
                   )}
                 </div>
               </form>
-
-              {/* Message Area - Only show error messages here */}
-              {formMessage.type === 'error' && formMessage.content && (
-                <div className="mt-4 p-4 rounded-lg bg-red-50 text-red-800">
-                  <pre className="whitespace-pre-line text-sm">
-                    {formMessage.content}
-                  </pre>
-                </div>
-              )}
 
               {/* File Details Area */}
               {fileDetails.length > 0 && (
