@@ -68,14 +68,14 @@ export async function POST(request) {
         <p>• טפסי 161: ${body.closingPapers}</p>
         <p>• עובד כיום: ${body.currentEmploymentStatus}</p>
         <p>• משכורת נוכחית: ${body.salary || 'לא צוין'}</p>
-        <p>• מעסיק נוכחי: ${body.employerName || 'לא צוין'}</p>
+        <p>• שם מעסיק נוכחי: ${body.employerName || 'לא צוין'}</p>
       </div>
 
       <div style="margin: 20px 0;">
         <h3 style="color: #1b283c;">🏥 מצב רפואי ופיננסי</h3>
-        <p>• בעיות משפטיות: ${body.financialIssues}</p>
-        <p>• נכות: ${body.disability}</p>
-        <p>• תביעת נכות: ${body.disabilityClaim}</p>
+        <p>• האם ללקוח קיים עיקולים? בעיות בספרי הבנק? הוצאה לפועל? שיקים ותשלומים שחזרו? ${body.financialIssues}</p>
+        <p>• האם קיימת נכות ללקוח או לאחד מבני המשפחה? ${body.disability}</p>
+        <p>• האם קיימת תביעת נכות מתנהלת מול ביטוח לאומי או חברת הביטוח? ${body.disabilityClaim}</p>
       </div>
 
       <div style="margin: 20px 0;">
