@@ -10,15 +10,8 @@ const nextConfig = {
   },
   images: {
     domains: ['res.cloudinary.com'],
-    unoptimized: true,
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-      },
-    ],
-  },
-  output: 'export'
+    unoptimized: true
+  }
 }
 
 module.exports = nextConfig 
