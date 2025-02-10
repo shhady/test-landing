@@ -13,7 +13,7 @@ export default function Home() {
         ממתין מעבר לפינה
         </h1>
         <Link href="/agent1">
-          <button className="bg-[#0070f3] text-white px-8 py-3 rounded-md hover:bg-[#005cc5] transition-colors text-lg font-medium">
+          <button className="bg-[#8dc63f] text-white px-8 py-3 rounded-md hover:bg-[#87be3b] transition-colors text-lg font-medium">
             התחל עכשיו
           </button>
         </Link>
