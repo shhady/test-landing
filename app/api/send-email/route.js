@@ -173,8 +173,7 @@ export async function POST(request) {
         text_mkn2x1qt:body.idFront || '',
         text_mkn2tqs3:body.idBack || '',
         text_mkn2qdb9:body.idAttachment || '',
-        text_mkn2pf5n:body.bankApproval === 'pdf-attachment' ? '' : body.bankApproval || '',
-        files_mkn2vds9:body.bankApproval === 'pdf-attachment' ? 'PDF File Attached' : '',
+        text_mkn2pf5n:body.bankApproval === 'pdf-attachment' ? ' קובץ במייל': body.bankApproval || '',
       });
 
       // Create the item with properly formatted column values
