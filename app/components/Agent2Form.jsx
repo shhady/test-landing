@@ -12,7 +12,7 @@ const uploadToCloudinary = async (file, onProgress) => {
 
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('upload_preset', 'shadi-landing');
+  formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
 
   try {
     const xhr = new XMLHttpRequest();
@@ -36,7 +36,7 @@ const uploadToCloudinary = async (file, onProgress) => {
       xhr.onerror = () => reject(new Error('Upload failed'));
     });
 
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/shhady/auto/upload`);
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`);     
     xhr.send(formData);
 
     return await promise;
