@@ -6,15 +6,18 @@ export const config = {
 
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { ApiClient } from '@mondaydotcomorg/api';
 import { allowedAgents } from '../../config/agents';
 
 const resendApiKey = process.env.RESEND_API_KEY;
+const mondayApiKey = process.env.MONDAY_API_KEY;
 const resend = new Resend(resendApiKey);
+const mondayClient = new ApiClient({ token: mondayApiKey });
 
 export async function POST(request) {
-  if (!resendApiKey) {
+  if (!resendApiKey || !mondayApiKey) {
     return NextResponse.json(
-      { error: 'Server configuration error: Missing API key' },
+      { error: 'Server configuration error: Missing API keys' },
       { status: 500 }
     );
   }
@@ -139,11 +142,67 @@ export async function POST(request) {
       }];
     }
 
+    // Send email
     console.log('Sending email with options:', { ...emailOptions, attachments: emailOptions.attachments ? 'PDF Attached' : 'No PDF' });
-    const data = await resend.emails.send(emailOptions);
-    console.log('Email sent successfully:', data);
+    const emailData = await resend.emails.send(emailOptions);
+    console.log('Email sent successfully:', emailData);
 
-    return NextResponse.json({ success: true });
+    // After successful email, create Monday.com record
+    try {
+      const boardId = process.env.MONDAY_BOARD_ID;
+        
+      // Format the column values according to Monday.com's API requirements
+      // Using the exact format that worked in the API playground
+      const columnValues = JSON.stringify({
+        status_mkmyxmvx: { label: "new lead" },
+        date4: { date: new Date().toISOString().split('T')[0] },
+        text_mkn2wqm2: body.finishedWork || '',
+        status: agentFullName || '',
+        phone_mkn2313f: body.phone || '',
+        text_mkn2rpn2:body.idNumber || '',
+        text_mkn2q52f:body.endDate || '',
+        text_mkn2w04m:body.closingPapers || '',
+        text_mkn2kggf:body.disability || '',
+        text_mkn2mjwe:body.disabilityClaim || '',
+        text_mkn2vzyk:body.financialIssues || '',
+        text_mkn2kvn3:body.currentEmploymentStatus || '',
+        text_mkn2d7yc:body.salary || '',
+        text_mkn2ampw:body.employerName || '',
+        text_mkn2kfkn:body.transparentCall || '',
+        text_mkn2mzp0:body.city || '',
+        text_mkn2x1qt:body.idFront || '',
+        text_mkn2tqs3:body.idBack || '',
+        text_mkn2qdb9:body.idAttachment || '',
+        text_mkn2pf5n:body.bankApproval === 'pdf-attachment' ? '' : body.bankApproval || '',
+        files_mkn2vds9:body.bankApproval === 'pdf-attachment' ? 'PDF File Attached' : '',
+      });
+
+      // Create the item with properly formatted column values
+      const mutation = `
+        mutation {
+          create_item (
+            board_id: ${boardId}, 
+            item_name: "${body.fullName || 'New User'}",
+            column_values: ${JSON.stringify(columnValues)}
+          ) {
+            id
+          }
+        }
+      `;
+
+      const newItem = await mondayClient.request(mutation);
+
+      console.log('Monday.com record created successfully:', newItem);
+      return NextResponse.json({ success: true, emailData, mondayData: newItem });
+    } catch (mondayError) {
+      console.error('Error creating Monday.com record:', mondayError);
+      // Still return success since email was sent
+      return NextResponse.json({ 
+        success: true, 
+        emailData, 
+        mondayError: 'Failed to create Monday.com record'
+      });
+    }
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json(
