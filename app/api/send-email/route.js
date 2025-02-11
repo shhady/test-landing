@@ -110,7 +110,6 @@ export async function POST(request) {
               👁️ צפייה
             </a>
           </p>
-          
           <p style="margin: 10px 0;">
             <strong>אישור ניהול חשבון בנק:</strong><br>
             ${body.bankApproval === 'pdf-attachment' ? 
@@ -126,7 +125,7 @@ export async function POST(request) {
 
     const emailOptions = {
       from: 'onboarding@resend.dev',
-      to: 'shhadytours@gmail.com',
+      to: process.env.TO_EMAIL,
       subject: `טופס חדש - ${body.fullName}${agentFullName ? ` (${agentFullName})` : ''}`,
       html: emailContent,
     };
