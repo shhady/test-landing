@@ -18,8 +18,8 @@ export default function HomeComponent({setShowForm}) {
   const params = useParams();
   const agentName = params?.agentName;
 
-  // If there's an agent name but it's not in the allowed list
-  if (agentName && !allowedAgents.some(agent => agent.id === agentName)) {
+  // If there's no agent name or if the agent name is not in the allowed list
+  if (!agentName || !allowedAgents.some(agent => agent.id === agentName)) {
     return <ErrorMessage />;
   }
 
