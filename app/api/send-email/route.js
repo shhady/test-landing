@@ -87,6 +87,8 @@ export async function POST(request) {
         <p>• טלפון: ${body.phone}</p>
         <p>• ת.ז: ${body.idNumber}</p>
         <p>• עיר: ${body.city}</p>
+        <p>• מיקוד: ${body.zipCode}</p>
+        <p>• רחוב ומספר בית: ${body.streetHouseNumber}</p>
         <p>• מוכן לשיחה: ${body.transparentCall}</p>
       </div>
 
@@ -170,6 +172,8 @@ export async function POST(request) {
         text_mkn2ampw:body.employerName || '',
         text_mkn2kfkn:body.transparentCall || '',
         text_mkn2mzp0:body.city || '',
+        text_mkn3ppmh:body.zipCode || '',
+        text_mkn3nnwd:body.streetHouseNumber || '',
         text_mkn2x1qt:body.idFront || '',
         text_mkn2tqs3:body.idBack || '',
         text_mkn2qdb9:body.idAttachment || '',

@@ -86,6 +86,8 @@ export default function Agent2Form({ agentName , setShowForm}) {
     phone: '',
     idNumber: '',
     city: '',
+    zipCode: '',
+    streetHouseNumber: '',
     idFront: null,
     idBack: null,
     idAttachment: null,
@@ -382,6 +384,8 @@ export default function Agent2Form({ agentName , setShowForm}) {
           phone: '',
           idNumber: '',
           city: '',
+          zipCode: '',
+          streetHouseNumber: '',
           idFront: null,
           idBack: null,
           idAttachment: null,
@@ -720,6 +724,30 @@ export default function Agent2Form({ agentName , setShowForm}) {
                     <input
                       type="text"
                       name="city"
+                      onChange={handleInputChange}
+                      className="w-full p-3 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-2">מיקוד</label>
+                    <input
+                      type="text"
+                      name="zipCode"
+                      value={formData.zipCode}
+                      onChange={handleInputChange}
+                      className="w-full p-3 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-bold mb-2">רחוב ומספר בית</label>
+                    <input
+                      type="text"
+                      name="streetHouseNumber"
+                      value={formData.streetHouseNumber}
                       onChange={handleInputChange}
                       className="w-full p-3 border border-gray-300 rounded-md"
                       required
